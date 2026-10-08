@@ -118,10 +118,10 @@ npm run preview
 
 This repository is pre-configured with [`vercel.json`](./vercel.json) for zero-configuration deployment on **Vercel**:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnabil24024004%2FTEAM-ZENITH-NASA-Space-Apps-Challenge-2026)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnabil24024004%2FTeam-Zenith-Dancing-With-SARs)
 
 1. **Via Vercel Dashboard (GitHub Integration)**:
-   - Go to [vercel.com/new](https://vercel.com/new) and import `nabil24024004/TEAM-ZENITH-NASA-Space-Apps-Challenge-2026`.
+   - Go to [vercel.com/new](https://vercel.com/new) and import `nabil24024004/Team-Zenith-Dancing-With-SARs`.
    - Vercel automatically detects **Vite** (`npm run build`, output directory `dist`) via `vercel.json`.
    - Click **Deploy**.
 2. **Via Vercel CLI**:
