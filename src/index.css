@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: #040406;
+    color: #F4F4F6;
+  }
+
+  body {
+    background-color: #040406;
+    overflow-x: hidden;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  /* Frosted Glass Card — Multi-layered dark minimalism */
+  .frosted-glass-card {
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0.018) 55%,
+      rgba(255, 255, 255, 0.035) 100%
+    );
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 24px 60px -15px rgba(0, 0, 0, 0.85),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .frosted-glass-pill {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.07) 0%,
+      rgba(255, 255, 255, 0.025) 100%
+    );
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    box-shadow:
+      0 8px 24px -6px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+  }
+
+  /* Primary Glass-Effect CTA */
+  .glass-cta {
+    position: relative;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.13) 0%,
+      rgba(255, 255, 255, 0.04) 60%,
+      rgba(255, 255, 255, 0.09) 100%
+    );
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow:
+      0 12px 36px -8px rgba(0, 0, 0, 0.75),
+      0 0 28px -6px rgba(255, 255, 255, 0.12),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.08);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-cta:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.19) 0%,
+      rgba(255, 255, 255, 0.07) 60%,
+      rgba(225, 29, 72, 0.16) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.38);
+    box-shadow:
+      0 16px 44px -8px rgba(0, 0, 0, 0.85),
+      0 0 34px -4px rgba(255, 255, 255, 0.2),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+  }
+
+  /* Secondary Subtle Glass CTA */
+  .glass-cta-secondary {
+    position: relative;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.065) 0%,
+      rgba(255, 255, 255, 0.02) 100%
+    );
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    box-shadow:
+      0 10px 28px -8px rgba(0, 0, 0, 0.65),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .glass-cta-secondary:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.11) 0%,
+      rgba(255, 255, 255, 0.04) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow:
+      0 14px 34px -8px rgba(0, 0, 0, 0.75),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Subtle Diagonal Dot-Matrix Texture (From Pinterest Inspiration 2) */
+.bg-dot-matrix {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.075) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Writing mode utility for editorial vertical labels (From Pinterest Inspiration 1) */
+.writing-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #040406;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
