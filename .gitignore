@@ -3,11 +3,13 @@ node_modules/
 .pnp
 .pnp.js
 
-# Production build output
+# Production build output & Vercel
 dist/
 dist-ssr/
 build/
 .vite/
+.vercel
+.vercel/
 
 # Environment variables
 .env

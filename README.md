@@ -84,6 +84,7 @@ web app/
 ├── index.html                        # Space Grotesk, Plus Jakarta Sans & JetBrains Mono setup
 ├── package.json                      # Scripts & dependencies
 ├── tailwind.config.js                # Custom dark theme & typography configuration
+├── vercel.json                       # Vercel deployment & SPA rewrite configuration
 └── vite.config.js                    # Vite bundler configuration
 ```
 
@@ -110,6 +111,23 @@ npm run build
 # 4. Preview production build locally
 npm run preview
 ```
+
+---
+
+## 07 // Deployment on Vercel
+
+This repository is pre-configured with [`vercel.json`](./vercel.json) for zero-configuration deployment on **Vercel**:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnabil24024004%2FTEAM-ZENITH-NASA-Space-Apps-Challenge-2026)
+
+1. **Via Vercel Dashboard (GitHub Integration)**:
+   - Go to [vercel.com/new](https://vercel.com/new) and import `nabil24024004/TEAM-ZENITH-NASA-Space-Apps-Challenge-2026`.
+   - Vercel automatically detects **Vite** (`npm run build`, output directory `dist`) via `vercel.json`.
+   - Click **Deploy**.
+2. **Via Vercel CLI**:
+   ```bash
+   npx vercel --prod
+   ```
 
 ---
 
