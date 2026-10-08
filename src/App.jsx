@@ -6,9 +6,11 @@ import {
   ArrowUpRight,
   Compass,
   Layers,
+  Menu,
   Radar,
   Radio,
   Sparkles,
+  X,
 } from 'lucide-react';
 import {
   ZenithEmblem,
@@ -34,6 +36,7 @@ export default function App() {
   const [activePhenomenon, setActivePhenomenon] = useState(WALTZ_PHENOMENA[0]);
   const [activeNav, setActiveNav] = useState('welcome');
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mouseOffset, setMouseOffset] = useState({ x: 0, y: 0 });
   const [welcomeModalOpen, setWelcomeModalOpen] = useState(false);
 
@@ -97,6 +100,7 @@ export default function App() {
       clearTimeout(manualScrollTimerRef.current);
     }
     setActiveNav(navId);
+    setMobileMenuOpen(false);
 
     const el = document.getElementById(id);
     if (el) {
@@ -128,10 +132,10 @@ export default function App() {
         }}
       />
 
-      {/* ================= SCROLL-SYNCED FROSTED TRANSLUCENT NAVBAR ================= */}
+      {/* ================= SCROLL-SYNCED FROSTED TRANSLUCENT NAVBAR (MOBILE & DESKTOP RESPONSIVE) ================= */}
       <header
-        className={`fixed top-0 inset-x-0 z-40 px-4 sm:px-8 transition-all duration-500 ${
-          isScrolled ? 'pt-2.5 sm:pt-3.5' : 'pt-4 sm:pt-6'
+        className={`fixed top-0 inset-x-0 z-40 px-3 sm:px-8 transition-all duration-500 ${
+          isScrolled ? 'pt-2 sm:pt-3.5' : 'pt-3 sm:pt-6'
         }`}
       >
         <div className="max-w-7xl mx-auto">
@@ -139,102 +143,176 @@ export default function App() {
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className={`relative rounded-2xl px-4 sm:px-6 flex items-center justify-between transition-all duration-500 backdrop-blur-2xl ${
-              isScrolled
-                ? 'py-2.5 bg-[#040406]/75 border border-white/[0.11] shadow-[0_16px_44px_rgba(0,0,0,0.85)]'
-                : 'py-3.5 bg-[#040406]/45 border border-white/[0.07] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
+            className={`relative rounded-2xl px-3.5 sm:px-6 transition-all duration-500 backdrop-blur-2xl ${
+              isScrolled || mobileMenuOpen
+                ? 'py-2.5 bg-[#040406]/85 border border-white/[0.12] shadow-[0_16px_44px_rgba(0,0,0,0.85)]'
+                : 'py-3 sm:py-3.5 bg-[#040406]/50 border border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
             }`}
           >
-            {/* Left: Team Zenith Logo & Identity */}
-            <a
-              href="#welcome"
-              onClick={(e) => {
-                e.preventDefault();
-                scrollTo('welcome', 'welcome');
-              }}
-              className="flex items-center gap-3.5 group"
-            >
-              <div
-                className={`relative rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center overflow-hidden group-hover:border-white/25 transition-all duration-300 ${
-                  isScrolled ? 'w-9 h-9' : 'w-10 h-10'
-                }`}
+            <div className="flex items-center justify-between gap-2">
+              {/* Left: Team Zenith Logo & Identity */}
+              <a
+                href="#welcome"
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollTo('welcome', 'welcome');
+                }}
+                className="flex items-center gap-2.5 sm:gap-3.5 group min-w-0"
               >
-                <img
-                  src="/zenith-logo.png"
-                  alt="Team Zenith Logo"
-                  className="w-7 h-7 object-contain mix-blend-screen"
-                />
-              </div>
-              <div>
-                <div className="font-display text-xs sm:text-sm font-semibold tracking-[0.28em] uppercase text-white">
-                  TEAM ZENITH
+                <div
+                  className={`relative shrink-0 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center overflow-hidden group-hover:border-white/25 transition-all duration-300 ${
+                    isScrolled ? 'w-8 h-8 sm:w-9 sm:h-9' : 'w-9 h-9 sm:w-10 sm:h-10'
+                  }`}
+                >
+                  <img
+                    src="/zenith-logo.png"
+                    alt="Team Zenith Logo"
+                    className="w-6 h-6 sm:w-7 sm:h-7 object-contain mix-blend-screen"
+                  />
                 </div>
-                <div className="font-mono text-[9px] tracking-[0.18em] uppercase text-white/45 flex items-center gap-2">
-                  <span>NASA SPACE APPS 2026</span>
-                  <span className="hidden sm:inline-block text-white/25">·</span>
-                  <span className="hidden sm:inline-block text-white/70">
-                    {activeSectionObj.index} / 04
-                  </span>
-                </div>
-              </div>
-            </a>
-
-            {/* Center: Scroll-Synced Minimalist Navigation Links */}
-            <div className="hidden md:flex items-center gap-1 p-1 rounded-full bg-black/40 border border-white/[0.08]">
-              {NAV_SECTIONS.map((tab) => {
-                const isActive = activeNav === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => scrollTo(tab.id, tab.id)}
-                    className={`relative px-4 py-1.5 rounded-full text-xs font-mono tracking-[0.16em] uppercase transition-colors ${
-                      isActive
-                        ? 'text-white'
-                        : 'text-white/45 hover:text-white/85'
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.span
-                        layoutId="navPillIndicator"
-                        transition={{
-                          type: 'spring',
-                          stiffness: 380,
-                          damping: 30,
-                        }}
-                        className="absolute inset-0 rounded-full bg-white/[0.11] border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
-                      />
-                    )}
-                    <span className="relative z-10 flex items-center gap-1.5">
-                      <span
-                        className={`text-[9px] transition-opacity ${
-                          isActive ? 'opacity-80' : 'opacity-35'
-                        }`}
-                      >
-                        {tab.index}
-                      </span>
-                      <span>{tab.label}</span>
+                <div className="min-w-0">
+                  <div className="font-display text-[11px] sm:text-sm font-semibold tracking-[0.2em] sm:tracking-[0.28em] uppercase text-white truncate">
+                    TEAM ZENITH
+                  </div>
+                  <div className="font-mono text-[8px] sm:text-[9px] tracking-[0.14em] sm:tracking-[0.18em] uppercase text-white/45 flex items-center gap-1.5 truncate">
+                    <span className="truncate">NASA SPACE APPS 2026</span>
+                    <span className="hidden sm:inline-block text-white/25">·</span>
+                    <span className="hidden sm:inline-block text-white/70">
+                      {activeSectionObj.index} / 04
                     </span>
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                </div>
+              </a>
 
-            {/* Right: Scroll Section Readout (Mobile) + Glass-Effect CTA */}
-            <div className="flex items-center gap-2.5">
-              <div className="md:hidden px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 font-mono text-[9px] tracking-[0.16em] uppercase text-white/75">
-                {activeSectionObj.index} · {activeSectionObj.label}
+              {/* Center: Scroll-Synced Minimalist Navigation Links (Desktop lg+) */}
+              <div className="hidden lg:flex items-center gap-1 p-1 rounded-full bg-black/40 border border-white/[0.08]">
+                {NAV_SECTIONS.map((tab) => {
+                  const isActive = activeNav === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => scrollTo(tab.id, tab.id)}
+                      className={`relative px-4 py-1.5 rounded-full text-xs font-mono tracking-[0.16em] uppercase transition-colors ${
+                        isActive
+                          ? 'text-white'
+                          : 'text-white/45 hover:text-white/85'
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.span
+                          layoutId="navPillIndicator"
+                          transition={{
+                            type: 'spring',
+                            stiffness: 380,
+                            damping: 30,
+                          }}
+                          className="absolute inset-0 rounded-full bg-white/[0.11] border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
+                        />
+                      )}
+                      <span className="relative z-10 flex items-center gap-1.5">
+                        <span
+                          className={`text-[9px] transition-opacity ${
+                            isActive ? 'opacity-80' : 'opacity-35'
+                          }`}
+                        >
+                          {tab.index}
+                        </span>
+                        <span>{tab.label}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <GlassButton
-                onClick={() => setWelcomeModalOpen(true)}
-                variant="primary"
-                icon={ArrowUpRight}
-                className="text-[11px]"
-              >
-                Mission Brief
-              </GlassButton>
+              {/* Right: Desktop Glass CTA + Mobile/Tablet Section Pill & Hamburger Toggle */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="hidden sm:block">
+                  <GlassButton
+                    onClick={() => setWelcomeModalOpen(true)}
+                    variant="primary"
+                    icon={ArrowUpRight}
+                    className="text-[11px]"
+                  >
+                    Mission Brief
+                  </GlassButton>
+                </div>
+
+                {/* Mobile & Tablet Interactive Menu Trigger (< lg) */}
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen((prev) => !prev)}
+                  aria-label="Toggle navigation menu"
+                  aria-expanded={mobileMenuOpen}
+                  className="lg:hidden inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.11] border border-white/15 text-white transition-all active:scale-95"
+                >
+                  <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/85">
+                    {activeSectionObj.index} · {activeSectionObj.label}
+                  </span>
+                  {mobileMenuOpen ? (
+                    <X className="w-4 h-4 text-white/90" />
+                  ) : (
+                    <Menu className="w-4 h-4 text-white/90" />
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* Mobile & Tablet Expandable Frosted Glass Drawer (< lg) */}
+            <AnimatePresence>
+              {mobileMenuOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  className="lg:hidden overflow-hidden"
+                >
+                  <div className="pt-3 mt-3 border-t border-white/[0.08] flex flex-col gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {NAV_SECTIONS.map((tab) => {
+                        const isActive = activeNav === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => scrollTo(tab.id, tab.id)}
+                            className={`px-3.5 py-2.5 rounded-xl font-mono text-[10px] tracking-[0.16em] uppercase flex items-center justify-between transition-all ${
+                              isActive
+                                ? 'bg-white/[0.12] border border-white/25 text-white shadow-sm'
+                                : 'bg-white/[0.03] border border-white/[0.06] text-white/55 hover:text-white'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2 truncate">
+                              <span className="text-white/40">{tab.index}</span>
+                              <span className="truncate">{tab.label}</span>
+                            </span>
+                            {isActive && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Mobile Mission Brief CTA (< sm) */}
+                    <div className="sm:hidden pt-1.5">
+                      <GlassButton
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setWelcomeModalOpen(true);
+                        }}
+                        variant="primary"
+                        icon={ArrowUpRight}
+                        className="w-full justify-center text-[10px]"
+                      >
+                        Mission Brief
+                      </GlassButton>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.nav>
         </div>
       </header>
