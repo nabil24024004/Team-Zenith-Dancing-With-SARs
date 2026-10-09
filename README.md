@@ -206,18 +206,6 @@ npm run preview
 
 ---
 
-## 09 // Deployment on Vercel
-
-This repository is pre-configured with [`vercel.json`](./vercel.json) so both the `/api/*` serverless functions (`asf-search`, `earthdata-asset`, `watchpoints`) and the React SPA routes (`/` and `/dashboard`) deploy seamlessly on **Vercel**:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnabil24024004%2FTeam-Zenith-Dancing-With-SARs)
-
-1. Import the repository at [vercel.com/new](https://vercel.com/new).
-2. Add the environment variables from `.env` (`VITE_CARTO_API_KEY`, `VITE_CESIUM_ION_TOKEN`, `EARTHDATA_TOKEN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) in **Project Settings → Environment Variables**.
-3. Click **Deploy**.
-
----
-
 <div align="center">
 
 **Crafted by TEAM ZENITH**  
