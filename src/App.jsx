@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowDown,
   ArrowUp,
   ArrowUpRight,
   Compass,
@@ -229,12 +228,11 @@ export default function App() {
               <div className="flex items-center gap-2 shrink-0">
                 <div className="hidden sm:block">
                   <GlassButton
-                    onClick={() => setWelcomeModalOpen(true)}
+                    href="/dashboard"
                     variant="primary"
                     icon={ArrowUpRight}
-                    className="text-[11px]"
                   >
-                    Mission Brief
+                    Field Console
                   </GlassButton>
                 </div>
 
@@ -295,19 +293,16 @@ export default function App() {
                       })}
                     </div>
 
-                    {/* Mobile Mission Brief CTA (< sm) */}
-                    <div className="sm:hidden pt-1.5">
-                      <GlassButton
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          setWelcomeModalOpen(true);
-                        }}
-                        variant="primary"
-                        icon={ArrowUpRight}
-                        className="w-full justify-center text-[10px]"
+                    <div className="pt-1.5">
+                      <a
+                        href="/dashboard"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="glass-cta flex w-full items-center justify-center gap-2.5 rounded-xl px-4 py-3 font-mono text-[10px] tracking-[0.22em] uppercase font-medium text-white"
                       >
-                        Mission Brief
-                      </GlassButton>
+                        <Radar className="h-3.5 w-3.5 text-[#FB7185]" aria-hidden="true" />
+                        Open NISAR Field Console
+                        <ArrowUpRight className="h-3.5 w-3.5 opacity-80" aria-hidden="true" />
+                      </a>
                     </div>
                   </div>
                 </motion.div>
@@ -451,15 +446,15 @@ export default function App() {
               </p>
             </div>
 
-            {/* Center: Single Clean Glass-Effect CTA (Like "EXPLORE MORE" in Reference 1) */}
+            {/* Center: Clean Glass-Effect CTA */}
             <div className="md:col-span-4 flex justify-center">
               <GlassButton
-                onClick={() => scrollTo('waltz', 'waltz')}
+                href="/dashboard"
                 variant="primary"
                 compartment
-                icon={ArrowDown}
+                icon={ArrowUpRight}
               >
-                Explore More
+                NISAR Data
               </GlassButton>
             </div>
 
