@@ -15,12 +15,6 @@ export default async function handler(req, res) {
     ''
   ).trim();
 
-  if (!token) {
-    return res
-      .status(500)
-      .json({ error: 'Missing EARTHDATA_TOKEN in server environment' });
-  }
-
   const supabaseUrl = (process.env.VITE_SUPABASE_URL || '').trim();
   const supabaseKey = (
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -54,12 +48,15 @@ export default async function handler(req, res) {
     const cacheObject = `asf-query-${cacheKey}.json`;
 
     const upstreamUrl = `https://api.daac.asf.alaska.edu/services/search/param?${params.toString()}`;
+    const reqHeaders = {
+      Accept: 'application/json',
+      'User-Agent': 'TeamZenith-NISAR-Explorer/1.0',
+    };
+    if (token) {
+      reqHeaders.Authorization = `Bearer ${token}`;
+    }
     const response = await fetch(upstreamUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'User-Agent': 'TeamZenith-NISAR-Explorer/1.0',
-      },
+      headers: reqHeaders,
     });
 
     if (!response.ok) {

@@ -17,12 +17,13 @@ import {
   DotGridMark,
   DiamondCrosshair,
 } from '../../components/ZenithElements.jsx';
-import { filterCatalog, normalizeCatalog } from './catalog.js';
+import { filterCatalog, normalizeCatalog, getPartnerGranules } from './catalog.js';
 import CatalogFilters from './CatalogFilters.jsx';
 import CatalogTimeline from './CatalogTimeline.jsx';
 import GlobeViewer from './GlobeViewer.jsx';
 import RecordDetails from './RecordDetails.jsx';
 import { SME2_L3_DATASET } from './sme2Data.js';
+import { computeSarChangeProduct } from './sarChangeEngine.js';
 
 const INITIAL_FILTERS = { productType: '', startDate: '', endDate: '' };
 
@@ -121,6 +122,15 @@ export default function ExplorerPage() {
   const [drapeRadarOnGlobe, setDrapeRadarOnGlobe] = useState(true);
   const [sme2FocusTrigger, setSme2FocusTrigger] = useState(0);
 
+  // Multi-temporal SAR change detection & split-curtain comparison state
+  const [comparePair, setComparePair] = useState(null);
+  const [changeProduct, setChangeProduct] = useState(null);
+  const [changeLoading, setChangeLoading] = useState(false);
+  const [activeThresholdDb, setActiveThresholdDb] = useState(-18.0);
+  const [compareLayerMode, setCompareLayerMode] = useState('floodMask');
+  const [compareOpacity, setCompareOpacity] = useState(0.9);
+  const [splitRatio, setSplitRatio] = useState(0.5);
+
   const catalog = useMemo(() => {
     const baseRecords = Array.isArray(rawCatalog?.[0])
       ? rawCatalog[0]
@@ -181,6 +191,151 @@ export default function ExplorerPage() {
     filtered[0] ??
     null;
   const activeId = selected?.id ?? null;
+
+  // Find repeat-pass partner for the currently selected record (if not already comparing)
+  const activePartner = useMemo(() => {
+    if (!selected || comparePair) return null;
+    const partners = getPartnerGranules(selected, features);
+    return partners[0] ?? null;
+  }, [selected, features, comparePair]);
+
+  // Handlers for manual or auto multi-temporal pairing
+  const handleSelectAsDateA = (feature) => {
+    if (!feature) return;
+    if (comparePair?.granuleB) {
+      const bId = comparePair.granuleB.id ?? comparePair.granuleB.properties?.id;
+      const aId = feature.id ?? feature.properties?.id;
+      if (bId !== aId) {
+        setComparePair({ granuleA: feature, granuleB: comparePair.granuleB });
+        return;
+      }
+    }
+    const partners = getPartnerGranules(feature, features);
+    setComparePair({ granuleA: feature, granuleB: partners[0] ?? null });
+  };
+
+  const handleSelectAsDateB = (feature) => {
+    if (!feature) return;
+    const bId = feature.id ?? feature.properties?.id;
+    if (comparePair?.granuleA) {
+      const aId = comparePair.granuleA.id ?? comparePair.granuleA.properties?.id;
+      if (aId !== bId) {
+        setComparePair({ granuleA: comparePair.granuleA, granuleB: feature });
+        return;
+      }
+    } else if (selected) {
+      const selId = selected.id ?? selected.properties?.id;
+      if (selId !== bId) {
+        setComparePair({ granuleA: selected, granuleB: feature });
+        return;
+      }
+    }
+    const partners = getPartnerGranules(feature, features);
+    setComparePair({ granuleA: partners[0] ?? null, granuleB: feature });
+  };
+
+  const handleStartAutoCompare = (feature, partner) => {
+    const fA = feature ?? selected;
+    const fB = partner ?? (fA ? getPartnerGranules(fA, features)[0] : null) ?? activePartner;
+    if (!fA || !fB) return;
+
+    // Order chronologically: older date as Date A, newer as Date B
+    const timeA = Date.parse(fA.properties?.startTime ?? '') || 0;
+    const timeB = Date.parse(fB.properties?.startTime ?? '') || 0;
+    if (timeA <= timeB) {
+      setComparePair({ granuleA: fA, granuleB: fB });
+    } else {
+      setComparePair({ granuleA: fB, granuleB: fA });
+    }
+  };
+
+  const handleSwapCompare = () => {
+    setComparePair((prev) => {
+      if (!prev?.granuleA || !prev?.granuleB) return prev;
+      return { granuleA: prev.granuleB, granuleB: prev.granuleA };
+    });
+  };
+
+  const handleExitCompare = () => {
+    setComparePair(null);
+    setChangeProduct(null);
+  };
+
+  const handleThresholdChange = (newThreshold) => {
+    setActiveThresholdDb(newThreshold);
+    if (changeProduct?.recomputeAtThreshold) {
+      const recomputed = changeProduct.recomputeAtThreshold(newThreshold);
+      setChangeProduct((prev) =>
+        prev
+          ? {
+              ...prev,
+              waterClassDataUrl: recomputed.waterClassDataUrl,
+              stats: recomputed.stats,
+              thresholdDb: newThreshold,
+            }
+          : null
+      );
+    }
+  };
+
+  // Run real-time browser SAR change computation whenever comparePair updates
+  useEffect(() => {
+    if (!comparePair?.granuleA || !comparePair?.granuleB) {
+      setChangeProduct(null);
+      return;
+    }
+
+    let isCancelled = false;
+    setChangeLoading(true);
+
+    const gA = comparePair.granuleA;
+    const gB = comparePair.granuleB;
+    const pA = gA.properties ?? gA;
+    const pB = gB.properties ?? gB;
+
+    const browseListA = Array.isArray(pA.browse) ? pA.browse : [];
+    const browseListB = Array.isArray(pB.browse) ? pB.browse : [];
+    const rawUrlA =
+      browseListA.find((u) => typeof u === 'string' && u.includes('_LATLON')) ??
+      browseListA[0] ??
+      null;
+    const rawUrlB =
+      browseListB.find((u) => typeof u === 'string' && u.includes('_LATLON')) ??
+      browseListB[0] ??
+      null;
+
+    const proxiedUrlA = rawUrlA
+      ? `/api/earthdata-asset?url=${encodeURIComponent(rawUrlA)}`
+      : null;
+    const proxiedUrlB = rawUrlB
+      ? `/api/earthdata-asset?url=${encodeURIComponent(rawUrlB)}`
+      : null;
+
+    computeSarChangeProduct({
+      granuleA: gA,
+      granuleB: gB,
+      imageUrlA: proxiedUrlA,
+      imageUrlB: proxiedUrlB,
+      thresholdDb: activeThresholdDb,
+    })
+      .then((res) => {
+        if (!isCancelled) {
+          setChangeProduct(res);
+          setChangeLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to compute SAR change product:', err);
+        if (!isCancelled) setChangeLoading(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    comparePair?.granuleA?.id ?? comparePair?.granuleA?.properties?.id,
+    comparePair?.granuleB?.id ?? comparePair?.granuleB?.properties?.id,
+  ]);
   const dateCoverage = coverageLabel(features);
   const generatedAt = rawCatalog?.[0]?.[0]?.processingDate;
   const snapshotDate = generatedAt
@@ -1707,23 +1862,80 @@ export default function ExplorerPage() {
                 onSelect={setSelectedId}
                 drapeRadarOnGlobe={drapeRadarOnGlobe}
                 sme2FocusTrigger={sme2FocusTrigger}
+                comparePair={comparePair}
+                changeProduct={changeProduct}
+                compareLayerMode={compareLayerMode}
+                compareOpacity={compareOpacity}
+                onOpacityChange={setCompareOpacity}
+                splitRatio={splitRatio}
+                onSplitRatioChange={setSplitRatio}
+                onExitCompare={handleExitCompare}
+                onSetCompareMode={setCompareLayerMode}
+                onSwapCompare={handleSwapCompare}
+                onStartAutoCompare={handleStartAutoCompare}
+                activePartner={activePartner}
               />
               <div className="x-globe-legend" aria-label="Globe legend">
-                <div className="flex flex-wrap items-center gap-4">
-                  <span>
-                    <i aria-hidden="true" /> Ascending Track
-                  </span>
-                  <span>
-                    <i className="x-swatch-desc" aria-hidden="true" /> Descending
-                    Track
-                  </span>
-                  <span>
-                    <i className="x-swatch-selected" aria-hidden="true" />{' '}
-                    Selected + Draped SAR
-                  </span>
-                </div>
+                {comparePair ? (
+                  compareLayerMode === 'diffDb' ? (
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span>
+                        <i style={{ background: '#E11D48', border: '1px solid #FB7185' }} aria-hidden="true" /> Drop (≤ -3 dB · Water Expansion)
+                      </span>
+                      <span>
+                        <i style={{ background: 'transparent', border: '1px dashed rgba(244, 244, 246, 0.4)' }} aria-hidden="true" /> Stable Backscatter (±1 dB)
+                      </span>
+                      <span>
+                        <i style={{ background: '#8B5CF6', border: '1px solid #A78BFA' }} aria-hidden="true" /> Rise (≥ +3 dB · Surface Drying)
+                      </span>
+                    </div>
+                  ) : compareLayerMode === 'curtain' ? (
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span>
+                        <i style={{ background: '#8B5CF6', border: '1px solid #A78BFA' }} aria-hidden="true" /> Date A ({comparePair.granuleA?.properties?.acquisitionDate ?? 'Ref'})
+                      </span>
+                      <span>
+                        <i style={{ background: '#E11D48', border: '1px solid #FB7185' }} aria-hidden="true" /> Date B ({comparePair.granuleB?.properties?.acquisitionDate ?? 'Sec'})
+                      </span>
+                      <span>
+                        <i style={{ background: '#F4F4F6', border: '1px solid #FFFFFF' }} aria-hidden="true" /> Interactive 3D Curtain Divider
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span>
+                        <i style={{ background: '#4C1D95', border: '1px solid #6D28D9' }} aria-hidden="true" /> Permanent Water
+                      </span>
+                      <span>
+                        <i style={{ background: '#E11D48', border: '1px solid #FB7185' }} aria-hidden="true" /> New Water / Flood
+                      </span>
+                      <span>
+                        <i style={{ background: '#C4B5FD', border: '1px solid #DDD6FE' }} aria-hidden="true" /> Water Receded / Lost
+                      </span>
+                      <span>
+                        <i style={{ background: 'transparent', border: '1px dashed rgba(244, 244, 246, 0.4)' }} aria-hidden="true" /> Unchanged Land
+                      </span>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-wrap items-center gap-4">
+                    <span>
+                      <i aria-hidden="true" /> Ascending Track
+                    </span>
+                    <span>
+                      <i className="x-swatch-desc" aria-hidden="true" /> Descending Track
+                    </span>
+                    <span>
+                      <i className="x-swatch-selected" aria-hidden="true" /> Selected + Draped SAR
+                    </span>
+                  </div>
+                )}
                 <span className="text-white/45">
-                  Click any SAR frame or Svalbard L3 grid · Drag to orbit · Scroll to zoom
+                  {comparePair
+                    ? changeLoading
+                      ? 'Computing SAR Co-Registration & Speckle Filter…'
+                      : 'Real-time multi-temporal SAR change draped on 3D terrain'
+                    : 'Click any SAR frame or Svalbard L3 grid · Drag to orbit · Scroll to zoom'}
                 </span>
               </div>
             </div>
@@ -1742,6 +1954,10 @@ export default function ExplorerPage() {
                 features={filtered}
                 selectedId={activeId}
                 onSelect={setSelectedId}
+                comparePair={comparePair}
+                onSelectAsDateA={handleSelectAsDateA}
+                onSelectAsDateB={handleSelectAsDateB}
+                onAutoPair={handleStartAutoCompare}
               />
             </div>
           </div>
@@ -1759,6 +1975,11 @@ export default function ExplorerPage() {
             onSelectWatchpoint={handleSelectWatchpoint}
             onDeleteWatchpoint={handleDeleteWatchpoint}
             activeId={activeId}
+            comparePair={comparePair}
+            changeProduct={changeProduct}
+            activeThresholdDb={activeThresholdDb}
+            onThresholdChange={handleThresholdChange}
+            onExitCompare={handleExitCompare}
           />
 
           {/* Row 3: Compact Telemetry Source Footer */}

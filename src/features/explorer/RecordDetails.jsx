@@ -19,6 +19,7 @@ import {
 import { DiamondCrosshair } from '../../components/ZenithElements.jsx';
 import { SME2_L3_DATASET } from './sme2Data.js';
 import SyntheticPreview from './SyntheticPreview.jsx';
+import BackscatterHistogram from './BackscatterHistogram.jsx';
 
 function valueOrDash(value) {
   return value == null || value === '' ? 'Not provided' : String(value);
@@ -101,6 +102,11 @@ export default function RecordDetails({
   onSelectWatchpoint,
   onDeleteWatchpoint,
   activeId,
+  comparePair = null,
+  changeProduct = null,
+  activeThresholdDb = -18.0,
+  onThresholdChange,
+  onExitCompare,
 }) {
   const [copied, setCopied] = useState(false);
   const [selectedBrowseIdx, setSelectedBrowseIdx] = useState(0);
@@ -198,6 +204,671 @@ export default function RecordDetails({
       cancelled = true;
     };
   }, [qaCsvUrl]);
+
+  // Handle Multi-Temporal Change Mode when two granules are being compared
+  if (comparePair?.granuleA && comparePair?.granuleB) {
+    const granuleA = comparePair.granuleA;
+    const granuleB = comparePair.granuleB;
+    const pA = granuleA.properties ?? granuleA;
+    const pB = granuleB.properties ?? granuleB;
+
+    const idA = granuleA.id ?? pA.id ?? pA.granuleName;
+    const idB = granuleB.id ?? pB.id ?? pB.granuleName;
+    const dateA = pA.acquisitionDate ?? (pA.startTime ? pA.startTime.slice(0, 10) : 'Date A');
+    const dateB = pB.acquisitionDate ?? (pB.startTime ? pB.startTime.slice(0, 10) : 'Date B');
+    const track = pA.track ?? pA.pathNumber ?? '—';
+    const frame = pA.frameNumber ?? '—';
+
+    const stats = changeProduct?.stats ?? {
+      permanentWaterKm2: 0,
+      newWaterKm2: 0,
+      waterLostKm2: 0,
+      netChangeKm2: 0,
+      pixelAreaKm2: 0,
+      totalValidPx: 0,
+    };
+
+    const handleDownloadReport = () => {
+      if (!changeProduct) return;
+      const reportData = {
+        title: 'Team Zenith NISAR Multi-Temporal SAR Change Analysis Report',
+        timestamp: new Date().toISOString(),
+        algorithm: '5x5 Linear Boxcar Speckle Filter + Otsu Bimodal Thresholding + Geodesic Area',
+        granuleA: {
+          id: idA,
+          name: pA.granuleName,
+          date: dateA,
+          track,
+          frame,
+          direction: pA.flightDirection,
+          polarization: pA.polarization,
+          beamMode: pA.beamMode,
+        },
+        granuleB: {
+          id: idB,
+          name: pB.granuleName,
+          date: dateB,
+          track,
+          frame,
+          direction: pB.flightDirection,
+          polarization: pB.polarization,
+          beamMode: pB.beamMode,
+        },
+        thresholdDb: activeThresholdDb,
+        otsuA: changeProduct.otsuA,
+        otsuB: changeProduct.otsuB,
+        surfaceChangeStatistics: {
+          permanentWaterKm2: stats.permanentWaterKm2,
+          newWaterInundationKm2: stats.newWaterKm2,
+          waterLostRecededKm2: stats.waterLostKm2,
+          netWaterChangeKm2: stats.netChangeKm2,
+          geodesicPixelAreaKm2: stats.pixelAreaKm2,
+          totalValidPixels: stats.totalValidPx,
+        },
+        boundsWgs84: changeProduct.bounds,
+      };
+      const blob = new Blob([JSON.stringify(reportData, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `NISAR_SAR_Change_Report_${dateA}_vs_${dateB}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    };
+
+    const handleDownloadMask = () => {
+      if (!changeProduct?.waterClassDataUrl) return;
+      const link = document.createElement('a');
+      link.href = changeProduct.waterClassDataUrl;
+      link.download = `NISAR_SAR_Change_Mask_${dateA}_vs_${dateB}.png`;
+      link.click();
+    };
+
+    const handlePinChangeStudy = () => {
+      if (!onPinWatchpoint || !changeProduct) return;
+      const studyWatchpoint = {
+        title: `Multi-Temporal Flood Study: ${dateA} vs ${dateB}`,
+        pinned_granule_id: `${idA}__VS__${idB}`,
+        product_type: `${pA.processingLevel ?? 'GCOV'} Change Pair`,
+        latitude: (changeProduct.bounds.south + changeProduct.bounds.north) / 2,
+        longitude: (changeProduct.bounds.west + changeProduct.bounds.east) / 2,
+        notes: `Permanent Water: ${stats.permanentWaterKm2} km², New Flood Water: +${stats.newWaterKm2} km², Water Receded: -${stats.waterLostKm2} km², Net Water Change: ${stats.netChangeKm2 > 0 ? '+' : ''}${stats.netChangeKm2} km² (T = ${activeThresholdDb.toFixed(1)} dB). Track ${track}, Frame ${frame}.`,
+        status: 'ACTIVE',
+      };
+      onPinWatchpoint(studyWatchpoint);
+    };
+
+    return (
+      <div className="x-inspection-deck">
+        <style>{`
+          .x-compare-pair-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+          }
+          .x-compare-granule-card {
+            background: rgba(12, 12, 18, 0.7);
+            border: 1px solid rgba(244, 244, 246, 0.08);
+            border-radius: 8px;
+            padding: 10px 12px;
+          }
+          .x-compare-granule-card.is-card-a {
+            border-color: rgba(139, 92, 246, 0.35);
+          }
+          .x-compare-granule-card.is-card-b {
+            border-color: rgba(225, 29, 72, 0.35);
+          }
+          .x-granule-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 5px;
+          }
+          .x-date-pill {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            letter-spacing: 0.04em;
+          }
+          .x-date-pill.is-pill-a {
+            background: rgba(139, 92, 246, 0.2);
+            color: #C4B5FD;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+          }
+          .x-date-pill.is-pill-b {
+            background: rgba(225, 29, 72, 0.2);
+            color: #FB7185;
+            border: 1px solid rgba(225, 29, 72, 0.4);
+          }
+          .x-granule-date {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            color: #F4F4F6;
+          }
+          .x-granule-name-box {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(244, 244, 246, 0.65);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 6px;
+          }
+          .x-granule-mini-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+          }
+          .x-granule-mini-fields span {
+            color: rgba(244, 244, 246, 0.45);
+          }
+          .x-granule-mini-fields strong {
+            color: #F4F4F6;
+            margin-left: 4px;
+          }
+          .x-orbit-verify-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(139, 92, 246, 0.12);
+            border: 1px solid rgba(139, 92, 246, 0.35);
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: #C4B5FD;
+            margin-bottom: 12px;
+          }
+          .x-telemetry-cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+          }
+          .x-telemetry-card {
+            background: rgba(12, 12, 18, 0.75);
+            border: 1px solid rgba(244, 244, 246, 0.1);
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+          }
+          .x-telemetry-card.is-perm {
+            border-color: rgba(76, 29, 149, 0.6);
+            background: rgba(76, 29, 149, 0.12);
+          }
+          .x-telemetry-card.is-new {
+            border-color: rgba(225, 29, 72, 0.6);
+            background: rgba(225, 29, 72, 0.12);
+          }
+          .x-telemetry-card.is-lost {
+            border-color: rgba(196, 181, 253, 0.4);
+            background: rgba(196, 181, 253, 0.08);
+          }
+          .x-telemetry-card.is-net {
+            border-color: rgba(244, 244, 246, 0.3);
+            background: rgba(244, 244, 246, 0.05);
+          }
+          .x-card-label {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 9px;
+            font-weight: 700;
+            color: rgba(244, 244, 246, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+          }
+          .x-card-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+          }
+          .x-card-sub {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8.5px;
+            color: rgba(244, 244, 246, 0.4);
+          }
+          .x-threshold-slider-box {
+            background: rgba(8, 8, 12, 0.8);
+            border: 1px solid rgba(244, 244, 246, 0.1);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+          }
+          .x-slider-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+          }
+          .x-slider-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(244, 244, 246, 0.8);
+          }
+          .x-slider-presets {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          .x-preset-pill {
+            background: rgba(244, 244, 246, 0.06);
+            border: 1px solid rgba(244, 244, 246, 0.14);
+            color: rgba(244, 244, 246, 0.7);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .x-preset-pill:hover {
+            background: rgba(244, 244, 246, 0.14);
+            color: #FFFFFF;
+          }
+          .x-preset-pill.is-active {
+            background: #E11D48;
+            border-color: #FB7185;
+            color: #FFFFFF;
+          }
+          .x-threshold-range {
+            width: 100%;
+            accent-color: #E11D48;
+            cursor: pointer;
+            margin: 0;
+          }
+          .x-insar-math-card {
+            background: rgba(10, 10, 16, 0.8);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 6px;
+          }
+          .x-insar-formula {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: #C4B5FD;
+            background: rgba(139, 92, 246, 0.15);
+            padding: 5px 8px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+          }
+          .x-insar-explanation {
+            font-size: 11px;
+            line-height: 1.5;
+            color: rgba(244, 244, 246, 0.7);
+            margin: 0;
+          }
+          .x-physics-box {
+            margin-top: 14px;
+            border-top: 1px solid rgba(244, 244, 246, 0.08);
+            padding-top: 12px;
+          }
+          .x-physics-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+          .x-physics-item {
+            background: rgba(12, 12, 18, 0.6);
+            border: 1px solid rgba(244, 244, 246, 0.08);
+            border-radius: 6px;
+            padding: 8px 10px;
+          }
+          .x-physics-item strong {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 10.5px;
+            color: #F4F4F6;
+            display: block;
+            margin-bottom: 3px;
+          }
+          .x-physics-item p {
+            font-size: 10.5px;
+            line-height: 1.45;
+            color: rgba(244, 244, 246, 0.65);
+            margin: 0;
+          }
+        `}</style>
+
+        {/* COLUMN 1: 04 // MULTI-TEMPORAL PAIR & EXPORT */}
+        <section
+          className="explorer-panel x-details"
+          aria-labelledby="x-compare-pair-title"
+        >
+          <div className="x-panel-heading">
+            <div>
+              <span className="x-eyebrow">
+                <DiamondCrosshair />
+                <span>
+                  {stats.isCrossLocation
+                    ? '04 // DUAL-REGION COMPARATIVE SAR STUDY'
+                    : '04 // MULTI-TEMPORAL PAIR & EXPORT'}
+                </span>
+              </span>
+              <h2 id="x-compare-pair-title">
+                {stats.isCrossLocation
+                  ? 'Cross-Location Radar Analysis'
+                  : 'Repeat-Pass Orbital Pair'}
+              </h2>
+            </div>
+            <span className="x-product-badge">
+              {stats.isCrossLocation
+                ? `CROSS-LOC (${stats.separationKm} km)`
+                : `${pA.processingLevel ?? 'GCOV'} PAIR`}
+            </span>
+          </div>
+
+          <div className="x-compare-pair-grid">
+            <div className="x-compare-granule-card is-card-a">
+              <div className="x-granule-card-header">
+                <span className="x-date-pill is-pill-a">
+                  {stats.isCrossLocation ? 'LOCATION A (REFERENCE)' : 'DATE A (REFERENCE)'}
+                </span>
+                <span className="x-granule-date">{dateA}</span>
+              </div>
+              <div className="x-granule-name-box" title={pA.granuleName}>
+                {pA.granuleName ?? idA}
+              </div>
+              <div className="x-granule-mini-fields">
+                <div><span>Pass:</span> <strong>{pA.flightDirection ?? 'ASC'}</strong></div>
+                <div><span>Track / Frame:</span> <strong>{track} / {frame}</strong></div>
+                <div><span>Polarization:</span> <strong>{pA.polarization ?? 'Dual-Pol'}</strong></div>
+                <div><span>Start:</span> <strong>{pA.startTime ? pA.startTime.slice(11, 19) + ' UTC' : '—'}</strong></div>
+              </div>
+            </div>
+
+            <div className="x-compare-granule-card is-card-b">
+              <div className="x-granule-card-header">
+                <span className="x-date-pill is-pill-b">
+                  {stats.isCrossLocation ? 'LOCATION B (SECONDARY)' : 'DATE B (SECONDARY)'}
+                </span>
+                <span className="x-granule-date">{dateB}</span>
+              </div>
+              <div className="x-granule-name-box" title={pB.granuleName}>
+                {pB.granuleName ?? idB}
+              </div>
+              <div className="x-granule-mini-fields">
+                <div><span>Pass:</span> <strong>{pB.flightDirection ?? 'ASC'}</strong></div>
+                <div><span>Track / Frame:</span> <strong>{pB.track ?? pB.pathNumber ?? '—'} / {pB.frameNumber ?? '—'}</strong></div>
+                <div><span>Polarization:</span> <strong>{pB.polarization ?? 'Dual-Pol'}</strong></div>
+                <div><span>Start:</span> <strong>{pB.startTime ? pB.startTime.slice(11, 19) + ' UTC' : '—'}</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="x-orbit-verify-banner">
+            <CheckCircle2 size={13} className="text-[#A78BFA] flex-shrink-0" />
+            <span>
+              {stats.isCrossLocation
+                ? `Dual-Region Analysis Active · ${stats.separationKm} km Separation`
+                : `Repeat-Pass Co-Registration Verified · Track ${track}, Frame ${frame}`}
+            </span>
+          </div>
+
+          <div className="x-record-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button
+              type="button"
+              className="x-link-button is-primary"
+              onClick={handlePinChangeStudy}
+              disabled={pinning}
+            >
+              <BookmarkPlus size={13} aria-hidden="true" />
+              <span>{pinning ? 'Pinning Study…' : 'Pin Change Study to Supabase'}</span>
+            </button>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="x-link-button"
+                style={{ flex: 1 }}
+                onClick={handleDownloadReport}
+                title="Download formatted JSON report with all surface change statistics"
+              >
+                <Download size={13} aria-hidden="true" />
+                <span>Export Report JSON</span>
+              </button>
+
+              <button
+                type="button"
+                className="x-link-button"
+                style={{ flex: 1 }}
+                onClick={handleDownloadMask}
+                title="Download transparent change mask PNG"
+              >
+                <Download size={13} aria-hidden="true" />
+                <span>Download PNG Mask</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="x-link-button"
+              style={{ opacity: 0.7 }}
+              onClick={onExitCompare}
+            >
+              <span>Exit Multi-Temporal Compare</span>
+            </button>
+          </div>
+        </section>
+
+        {/* COLUMN 2: 05 // THRESHOLD SENSITIVITY & BIMODAL dB HISTOGRAM */}
+        <section
+          className="explorer-panel x-preview-panel"
+          aria-labelledby="x-compare-telemetry-title"
+        >
+          <div className="x-panel-heading">
+            <div>
+              <span className="x-eyebrow">
+                <DiamondCrosshair />
+                <span>05 // THRESHOLD SENSITIVITY &amp; BIMODAL dB HISTOGRAM</span>
+              </span>
+              <h2 id="x-compare-telemetry-title">
+                {stats.isCrossLocation
+                  ? 'Cross-Region Radar Backscatter'
+                  : 'Radar Surface Water Analytics'}
+              </h2>
+            </div>
+            <span className="x-product-badge">
+              {stats.isCrossLocation ? 'CROSS-REGION' : '4-CLASS FLOOD'}
+            </span>
+          </div>
+
+          <div className="x-telemetry-cards-grid">
+            <div className="x-telemetry-card is-perm">
+              <span className="x-card-label">
+                {stats.isCrossLocation ? 'Location A Water' : 'Permanent Water'}
+              </span>
+              <strong className="x-card-val text-[#C4B5FD]">
+                {stats.isCrossLocation
+                  ? `${stats.waterKm2A?.toFixed(2)} km²`
+                  : `${stats.permanentWaterKm2.toFixed(2)} km²`}
+              </strong>
+              <small className="x-card-sub">
+                {stats.isCrossLocation ? 'Location A surface water' : 'Baseline channel (A & B)'}
+              </small>
+            </div>
+
+            <div className="x-telemetry-card is-new">
+              <span className="x-card-label">
+                {stats.isCrossLocation ? 'Location B Water' : 'New Water / Inundation'}
+              </span>
+              <strong className="x-card-val text-[#FB7185]">
+                {stats.isCrossLocation
+                  ? `${stats.waterKm2B?.toFixed(2)} km²`
+                  : `+${stats.newWaterKm2.toFixed(2)} km²`}
+              </strong>
+              <small className="x-card-sub">
+                {stats.isCrossLocation ? 'Location B surface water' : 'Flood expansion on B'}
+              </small>
+            </div>
+
+            <div className="x-telemetry-card is-lost">
+              <span className="x-card-label">
+                {stats.isCrossLocation ? 'Water Differential' : 'Water Lost / Receded'}
+              </span>
+              <strong className="x-card-val text-[#DDD6FE]">
+                {stats.isCrossLocation
+                  ? `${stats.netChangeKm2 > 0 ? '+' : ''}${stats.netChangeKm2.toFixed(2)} km²`
+                  : `-${stats.waterLostKm2.toFixed(2)} km²`}
+              </strong>
+              <small className="x-card-sub">
+                {stats.isCrossLocation ? 'B minus A water area' : 'Drydown recession on A'}
+              </small>
+            </div>
+
+            <div className="x-telemetry-card is-net">
+              <span className="x-card-label">
+                {stats.isCrossLocation ? 'Separation Distance' : 'Net Surface Water Δ'}
+              </span>
+              <strong className="x-card-val text-[#F4F4F6]">
+                {stats.isCrossLocation
+                  ? `${stats.separationKm} km`
+                  : `${stats.netChangeKm2 > 0 ? '+' : ''}${stats.netChangeKm2.toFixed(2)} km²`}
+              </strong>
+              <small className="x-card-sub">
+                {stats.isCrossLocation
+                  ? 'Geodesic separation'
+                  : stats.pixelAreaKm2 ? `${(stats.pixelAreaKm2 * 1e6).toFixed(0)} m²/pixel` : 'Geodesic'}
+              </small>
+            </div>
+          </div>
+
+          <div className="x-threshold-slider-box">
+            <div className="x-slider-header">
+              <span className="x-slider-label">
+                Water Threshold: <strong>{activeThresholdDb.toFixed(1)} dB</strong>
+              </span>
+              <div className="x-slider-presets">
+                <button
+                  type="button"
+                  className={`x-preset-pill${activeThresholdDb === -16.0 ? ' is-active' : ''}`}
+                  onClick={() => onThresholdChange?.(-16.0)}
+                >
+                  -16 dB
+                </button>
+                <button
+                  type="button"
+                  className={`x-preset-pill${activeThresholdDb === -18.0 ? ' is-active' : ''}`}
+                  onClick={() => onThresholdChange?.(-18.0)}
+                >
+                  -18 dB
+                </button>
+                <button
+                  type="button"
+                  className={`x-preset-pill${activeThresholdDb === -20.0 ? ' is-active' : ''}`}
+                  onClick={() => onThresholdChange?.(-20.0)}
+                >
+                  -20 dB
+                </button>
+                {changeProduct?.otsuA && (
+                  <button
+                    type="button"
+                    className="x-preset-pill"
+                    onClick={() => onThresholdChange?.(changeProduct.otsuA)}
+                  >
+                    Otsu Auto ({changeProduct.otsuA} dB)
+                  </button>
+                )}
+              </div>
+            </div>
+            <input
+              type="range"
+              min="-24.0"
+              max="-12.0"
+              step="0.1"
+              value={activeThresholdDb}
+              onChange={(e) => onThresholdChange?.(parseFloat(e.target.value))}
+              className="x-threshold-range"
+            />
+          </div>
+
+          {changeProduct?.histogram && (
+            <BackscatterHistogram
+              histogram={changeProduct.histogram}
+              activeThresholdDb={activeThresholdDb}
+              onThresholdChange={onThresholdChange}
+              otsuA={changeProduct.otsuA}
+              otsuB={changeProduct.otsuB}
+              dateALabel={dateA}
+              dateBLabel={dateB}
+            />
+          )}
+        </section>
+
+        {/* COLUMN 3: 06 // INSAR COHERENCE, NOISE FLOOR & RADAR PHYSICS */}
+        <section
+          className="explorer-panel x-qa-watchpoints-panel"
+          aria-labelledby="x-physics-panel-title"
+        >
+          <div className="x-panel-heading">
+            <div>
+              <span className="x-eyebrow">
+                <DiamondCrosshair />
+                <span>06 // INSAR COHERENCE &amp; RADAR PHYSICS</span>
+              </span>
+              <h2 id="x-physics-panel-title">Phase hygiene &amp; radar physics</h2>
+            </div>
+            <span className="x-product-badge">
+              L-BAND 24 cm
+            </span>
+          </div>
+
+          <div className="x-qa-box">
+            <div className="x-qa-header">
+              <span className="x-sub-eyebrow">
+                INSAR ATMOSPHERIC NOISE-FLOOR &amp; IONOSPHERIC HYGIENE
+              </span>
+              <span className="x-qa-pill is-pass">
+                <CheckCircle2 size={10} /> Calibrated
+              </span>
+            </div>
+            <div className="x-insar-math-card">
+              <div className="x-insar-formula">
+                LOS = Δφ · (λ / 4π) = Δφ · 1.89 cm / rad (λ = 23.8 cm)
+              </div>
+              <p className="x-insar-explanation">
+                Relative Line-of-Sight (LOS) phase variations under ±1.5 cm over a 12-day repeat cycle
+                represent tropospheric water vapor delay rather than tectonic slip. Tropospheric turbulent delays
+                must be deramped with least-squares planes before inferring true sub-centimeter deformation.
+              </p>
+            </div>
+          </div>
+
+          <div className="x-physics-box">
+            <span className="x-sub-eyebrow" style={{ display: 'block', marginBottom: '8px' }}>
+              MICROWAVE RADAR PHYSICS &amp; INTERPRETATION RULES
+            </span>
+            <div className="x-physics-cards">
+              <div className="x-physics-item">
+                <strong>1. Bragg Wind-Roughening:</strong>
+                <p>Surface wind gusts create resonant capillary waves on open water, elevating backscatter from -24 dB to &gt; -15 dB. Temporal speckle filtering isolates true water recession from transient wind roughening.</p>
+              </div>
+              <div className="x-physics-item">
+                <strong>2. HH Double-Bounce in Flooded Canopy:</strong>
+                <p>Vertical tree trunks and horizontal water act as dihedral corner reflectors, spiking L-band HH backscatter (&gt; -8 dB) rather than darkening, revealing sub-canopy flood expansion.</p>
+              </div>
+              <div className="x-physics-item">
+                <strong>3. Tropospheric Phase Delay:</strong>
+                <p>Moisture gradients introduce spatial phase ramps across repeat interferograms (GUNW). Least-squares plane fitting removes topographically correlated atmospheric artifacts.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (!feature) {
     return (

@@ -4,6 +4,7 @@ import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { Mountain, Globe2, Layers, Focus, Sparkles } from 'lucide-react';
 import { DiamondCrosshair } from '../../components/ZenithElements.jsx';
 import { SME2_L3_DATASET } from './sme2Data.js';
+import ComparePairBar from './ComparePairBar.jsx';
 
 const CESIUM_ION_TOKEN = (import.meta.env.VITE_CESIUM_ION_TOKEN ?? '').trim();
 
@@ -147,6 +148,18 @@ export default function GlobeViewer({
   onSelect,
   drapeRadarOnGlobe = true,
   sme2FocusTrigger = 0,
+  comparePair = null,
+  changeProduct = null,
+  compareLayerMode = 'floodMask',
+  compareOpacity = 0.9,
+  onOpacityChange,
+  splitRatio = 0.5,
+  onSplitRatioChange,
+  onExitCompare,
+  onSetCompareMode,
+  onSwapCompare,
+  onStartAutoCompare,
+  activePartner = null,
 }) {
   const hostRef = useRef(null);
   const viewerRef = useRef(null);
@@ -154,6 +167,9 @@ export default function GlobeViewer({
   const referenceEntitiesRef = useRef([]);
   const onSelectRef = useRef(onSelect);
   const lastFlownIdRef = useRef(selectedId);
+  const curtainLayersRef = useRef({ layerA: null, layerB: null });
+  const compareEntitiesRef = useRef([]);
+  const lastFlownCompareKeyRef = useRef(null);
   const [status, setStatus] = useState({
     state: 'loading',
     message: 'Initializing Cesium Ion 3D terrain & satellite globe…',
@@ -678,8 +694,8 @@ export default function GlobeViewer({
       }
     );
 
-    // Render the active selected footprint prominently draped over 3D terrain
-    if (selectedFeature) {
+    // Render the active selected footprint prominently draped over 3D terrain (when not in compare mode)
+    if (selectedFeature && !comparePair) {
       const hierarchies = polygonHierarchies(selectedFeature);
       if (hierarchies) {
         const id = selectedFeature.id ?? selectedFeature.properties?.id;
@@ -790,7 +806,289 @@ export default function GlobeViewer({
     }
 
     if (!viewer.isDestroyed()) viewer.scene.requestRender();
-  }, [features, selectedId, viewerReady, showRawStrips, drapeRadarOnGlobe]);
+  }, [features, selectedId, viewerReady, showRawStrips, drapeRadarOnGlobe, comparePair]);
+
+  // Synchronize splitPosition when dragging curtain slider
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (viewer && !viewer.isDestroyed() && viewer.scene) {
+      viewer.scene.splitPosition = splitRatio;
+      viewer.scene.requestRender();
+    }
+  }, [splitRatio]);
+
+  // Handle multi-temporal comparison overlay draping and curtain imagery layers
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || viewer.isDestroyed() || !viewerReady) return;
+
+    // 1. Clean up previous comparison entities
+    compareEntitiesRef.current.forEach((ent) => {
+      try {
+        viewer.entities.remove(ent);
+      } catch {}
+    });
+    compareEntitiesRef.current = [];
+
+    // 2. Clean up previous curtain imagery layers
+    if (curtainLayersRef.current.layerA) {
+      try {
+        viewer.imageryLayers.remove(curtainLayersRef.current.layerA, true);
+      } catch {}
+      curtainLayersRef.current.layerA = null;
+    }
+    if (curtainLayersRef.current.layerB) {
+      try {
+        viewer.imageryLayers.remove(curtainLayersRef.current.layerB, true);
+      } catch {}
+      curtainLayersRef.current.layerB = null;
+    }
+
+    if (!comparePair?.granuleA || !comparePair?.granuleB || !changeProduct) {
+      viewer.scene.splitPosition = 0.5;
+      viewer.scene.requestRender();
+      return;
+    }
+
+    const { bounds, waterClassDataUrl, diffDbDataUrl, dateADataUrl, dateBDataUrl } = changeProduct;
+    const pA = comparePair.granuleA.properties ?? comparePair.granuleA;
+    const pB = comparePair.granuleB.properties ?? comparePair.granuleB;
+    const compareKey = `${comparePair.granuleA.id ?? pA.id}__${comparePair.granuleB.id ?? pB.id}`;
+
+    // Fly camera into tilted 3D terrain view framing both swaths (or global view for cross-location)
+    if (lastFlownCompareKeyRef.current !== compareKey && bounds) {
+      lastFlownCompareKeyRef.current = compareKey;
+      const centerLon = (bounds.west + bounds.east) / 2;
+      const centerLat = (bounds.south + bounds.north) / 2;
+      const separation = changeProduct.separationKm || 0;
+      const altitude = separation > 80
+        ? Math.max(800_000, Math.min(14_000_000, separation * 3200))
+        : 420_000;
+      const pitch = separation > 80 ? -65.0 : -36.0;
+
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          centerLon,
+          centerLat - (separation > 80 ? 0 : 3.2),
+          altitude
+        ),
+        orientation: {
+          heading: 0.0,
+          pitch: Cesium.Math.toRadians(pitch),
+          roll: 0.0,
+        },
+        duration: 1.2,
+      });
+    }
+
+    // Outline Granule A (Violet) and Granule B (Crimson)
+    const renderCompareOutline = (feature, hexColor, labelText) => {
+      const hierarchies = polygonHierarchies(feature);
+      if (!hierarchies) return;
+      const ent = viewer.entities.add({
+        polyline: {
+          positions: hierarchies[0].positions,
+          width: 3.0,
+          material: Cesium.Color.fromCssColorString(hexColor).withAlpha(1.0),
+          clampToGround: true,
+        },
+      });
+      compareEntitiesRef.current.push(ent);
+
+      const center = featureCenter(feature);
+      const fBounds = featureBounds(feature);
+      if (center) {
+        const topLat = fBounds ? fBounds.north + 0.12 : center.latitude;
+        const lbl = viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(center.longitude, topLat, 0),
+          label: {
+            text: labelText,
+            font: '700 10.5px "JetBrains Mono", monospace',
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.fromCssColorString(hexColor),
+            outlineWidth: 3,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        });
+        compareEntitiesRef.current.push(lbl);
+      }
+    };
+
+    const isCross = changeProduct.isCrossLocation;
+    renderCompareOutline(
+      comparePair.granuleA,
+      '#8B5CF6',
+      isCross ? `LOCATION A · ${pA.acquisitionDate ?? 'REF'}` : `DATE A · ${pA.acquisitionDate ?? 'REF'}`
+    );
+    renderCompareOutline(
+      comparePair.granuleB,
+      '#E11D48',
+      isCross ? `LOCATION B · ${pB.acquisitionDate ?? 'SEC'}` : `DATE B · ${pB.acquisitionDate ?? 'SEC'}`
+    );
+
+    // MODE 1: Split-Swipe Curtain (A ◄► B)
+    if (compareLayerMode === 'curtain' && bounds) {
+      const cesiumRect = Cesium.Rectangle.fromDegrees(
+        bounds.west,
+        bounds.south,
+        bounds.east,
+        bounds.north
+      );
+
+      const setupCurtain = async () => {
+        try {
+          const providerA = typeof Cesium.SingleTileImageryProvider?.fromUrl === 'function'
+            ? await Cesium.SingleTileImageryProvider.fromUrl(dateADataUrl, { rectangle: cesiumRect })
+            : new Cesium.SingleTileImageryProvider({ url: dateADataUrl, rectangle: cesiumRect });
+
+          if (viewer.isDestroyed()) return;
+          const layerA = viewer.imageryLayers.addImageryProvider(providerA);
+          layerA.splitDirection = Cesium.SplitDirection.LEFT;
+          layerA.alpha = 0.95;
+          curtainLayersRef.current.layerA = layerA;
+
+          const providerB = typeof Cesium.SingleTileImageryProvider?.fromUrl === 'function'
+            ? await Cesium.SingleTileImageryProvider.fromUrl(dateBDataUrl, { rectangle: cesiumRect })
+            : new Cesium.SingleTileImageryProvider({ url: dateBDataUrl, rectangle: cesiumRect });
+
+          if (viewer.isDestroyed()) return;
+          const layerB = viewer.imageryLayers.addImageryProvider(providerB);
+          layerB.splitDirection = Cesium.SplitDirection.RIGHT;
+          layerB.alpha = 0.95;
+          curtainLayersRef.current.layerB = layerB;
+
+          viewer.scene.splitPosition = splitRatio;
+          viewer.scene.requestRender();
+        } catch (err) {
+          console.warn('Curtain imagery setup error:', err);
+        }
+      };
+
+      setupCurtain();
+    } else {
+      // MODE 2 & 3: Draped Radar Overlays
+      viewer.scene.splitPosition = 0.5;
+
+      if (isCross) {
+        // Dual-region cross-location: drape Granule A over boundsA and Granule B over boundsB
+        if (changeProduct.boundsA && dateADataUrl) {
+          const drapeA = viewer.entities.add({
+            properties: { isCompareDrape: true },
+            rectangle: {
+              coordinates: Cesium.Rectangle.fromDegrees(
+                changeProduct.boundsA.west,
+                changeProduct.boundsA.south,
+                changeProduct.boundsA.east,
+                changeProduct.boundsA.north
+              ),
+              material: new Cesium.ImageMaterialProperty({
+                image: dateADataUrl,
+                transparent: true,
+                color: Cesium.Color.WHITE.withAlpha(compareOpacity),
+              }),
+              classificationType: Cesium.ClassificationType.BOTH,
+            },
+          });
+          compareEntitiesRef.current.push(drapeA);
+        }
+
+        if (changeProduct.boundsB && dateBDataUrl) {
+          const drapeB = viewer.entities.add({
+            properties: { isCompareDrape: true },
+            rectangle: {
+              coordinates: Cesium.Rectangle.fromDegrees(
+                changeProduct.boundsB.west,
+                changeProduct.boundsB.south,
+                changeProduct.boundsB.east,
+                changeProduct.boundsB.north
+              ),
+              material: new Cesium.ImageMaterialProperty({
+                image: dateBDataUrl,
+                transparent: true,
+                color: Cesium.Color.WHITE.withAlpha(compareOpacity),
+              }),
+              classificationType: Cesium.ClassificationType.BOTH,
+            },
+          });
+          compareEntitiesRef.current.push(drapeB);
+        }
+      } else {
+        // Same-location repeat-pass pair: drape 4-Class Flood Mask or Backscatter ΔdB
+        const drapeUrl =
+          compareLayerMode === 'diffDb' ? diffDbDataUrl : waterClassDataUrl;
+
+        if (drapeUrl && bounds) {
+          const drapeEnt = viewer.entities.add({
+            properties: { isCompareDrape: true },
+            rectangle: {
+              coordinates: Cesium.Rectangle.fromDegrees(
+                bounds.west,
+                bounds.south,
+                bounds.east,
+                bounds.north
+              ),
+              material: new Cesium.ImageMaterialProperty({
+                image: drapeUrl,
+                transparent: true,
+                color: Cesium.Color.WHITE.withAlpha(compareOpacity),
+              }),
+              classificationType: Cesium.ClassificationType.BOTH,
+            },
+          });
+          compareEntitiesRef.current.push(drapeEnt);
+        }
+      }
+    }
+
+    viewer.scene.requestRender();
+
+    return () => {
+      compareEntitiesRef.current.forEach((ent) => {
+        try {
+          viewer.entities.remove(ent);
+        } catch {}
+      });
+      compareEntitiesRef.current = [];
+      if (curtainLayersRef.current.layerA) {
+        try {
+          viewer.imageryLayers.remove(curtainLayersRef.current.layerA, true);
+        } catch {}
+        curtainLayersRef.current.layerA = null;
+      }
+      if (curtainLayersRef.current.layerB) {
+        try {
+          viewer.imageryLayers.remove(curtainLayersRef.current.layerB, true);
+        } catch {}
+        curtainLayersRef.current.layerB = null;
+      }
+    };
+  }, [
+    comparePair,
+    changeProduct,
+    compareLayerMode,
+    compareOpacity,
+    viewerReady,
+  ]);
+
+  const handleDividerPointerDown = (e) => {
+    e.preventDefault();
+    if (!hostRef.current) return;
+    const host = hostRef.current;
+    const onPointerMove = (moveEvt) => {
+      const rect = host.getBoundingClientRect();
+      const ratio = Math.max(0.05, Math.min(0.95, (moveEvt.clientX - rect.left) / rect.width));
+      onSplitRatioChange?.(ratio);
+    };
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
 
   return (
     <section className="x-globe-card" aria-label="3D catalog footprint globe">
@@ -945,17 +1243,128 @@ export default function GlobeViewer({
           font-size: 8px !important;
           opacity: 0.35;
         }
+        .x-curtain-container {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 15;
+        }
+        .x-curtain-divider {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          width: 3px;
+          background: #F4F4F6;
+          box-shadow: 0 0 16px rgba(225, 29, 72, 0.75);
+          transform: translateX(-50%);
+          pointer-events: auto;
+          cursor: ew-resize;
+          z-index: 16;
+        }
+        .x-curtain-handle-knob {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 36px;
+          height: 36px;
+          border-radius: 9999px;
+          background: #08080C;
+          border: 2px solid #E11D48;
+          color: #F4F4F6;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Space Grotesk', sans-serif;
+          font-size: 11px;
+          font-weight: 700;
+          box-shadow: 0 4px 20px rgba(4, 4, 6, 0.9), 0 0 12px rgba(225, 29, 72, 0.5);
+          transition: transform 0.15s ease, background 0.15s ease;
+        }
+        .x-curtain-divider:hover .x-curtain-handle-knob {
+          transform: translate(-50%, -50%) scale(1.1);
+          background: #E11D48;
+        }
+        .x-curtain-pill-left {
+          position: absolute;
+          top: calc(50% - 44px);
+          right: 20px;
+          background: rgba(12, 12, 18, 0.88);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(167, 139, 250, 0.5);
+          color: #C4B5FD;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 6px;
+          white-space: nowrap;
+          pointer-events: none;
+          box-shadow: 0 4px 16px rgba(4, 4, 6, 0.8);
+        }
+        .x-curtain-pill-right {
+          position: absolute;
+          top: calc(50% - 44px);
+          left: 20px;
+          background: rgba(12, 12, 18, 0.88);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(251, 113, 133, 0.5);
+          color: #FB7185;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 6px;
+          white-space: nowrap;
+          pointer-events: none;
+          box-shadow: 0 4px 16px rgba(4, 4, 6, 0.8);
+        }
         @media (max-width: 620px) {
           .x-globe-card { min-height: 340px; border-radius: 16px; }
           .x-globe-kicker { flex-wrap: wrap; }
         }
       `}</style>
+
+      {/* Floating Multi-Temporal Compare HUD Bar */}
+      <ComparePairBar
+        comparePair={comparePair}
+        activePartner={activePartner}
+        changeProduct={changeProduct}
+        onStartAutoCompare={onStartAutoCompare}
+        compareLayerMode={compareLayerMode}
+        onSetCompareMode={onSetCompareMode}
+        compareOpacity={compareOpacity}
+        onOpacityChange={onOpacityChange}
+        onSwapCompare={onSwapCompare}
+        onExitCompare={onExitCompare}
+      />
+
       <div
         className="x-globe-host"
         ref={hostRef}
         role="img"
         aria-label={`Interactive 3D Earth globe showing ${features.length} catalog acquisition footprints. A complete keyboard-accessible observation list follows the globe; select a record there to update the highlighted footprint and details.`}
       />
+
+      {/* Interactive Split-Swipe Curtain Divider Handle */}
+      {comparePair && compareLayerMode === 'curtain' && (
+        <div className="x-curtain-container">
+          <div
+            className="x-curtain-divider"
+            style={{ left: `${splitRatio * 100}%` }}
+            onPointerDown={handleDividerPointerDown}
+            title="Drag horizontally to swipe between Date A and Date B"
+          >
+            <div className="x-curtain-handle-knob">◄►</div>
+            <div className="x-curtain-pill-left">
+              ◄ DATE A: {comparePair.granuleA?.properties?.acquisitionDate ?? 'REF'}
+            </div>
+            <div className="x-curtain-pill-right">
+              {comparePair.granuleB?.properties?.acquisitionDate ?? 'SEC'} ►
+            </div>
+          </div>
+        </div>
+      )}
       <div className="x-globe-kicker">
         <div className="x-globe-kicker-pill">
           <DiamondCrosshair />

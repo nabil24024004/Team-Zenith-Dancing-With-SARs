@@ -114,3 +114,44 @@ npm run dev
    - **`04 // SELECTED RECORD`**: View orbital parameters, click **`Download HDF5`** or **`Copy URL`**, click **`Pin to Supabase`** to save the granule as a shared watchpoint, or download companion **`QA Report PDF`**, **`QA Summary CSV`**, **`ISCE3 RunConfig YAML`**, and **`ISO 19115 XML`** files.
    - **`05 // AUTHENTICATED NISAR SAR IMAGERY`**: View the real NASA Earthdata browse PNG, switch polarization channels, or toggle **`Draped on 3D Globe`**.
    - **`06 // TELEMETRY & SUPABASE CLOUD`**: Inspect live parsed quality verification checks (`PASS` / `WARN`) from the granule's `*_QA_SUMMARY.csv` and click or manage saved **Supabase Cloud Mission Watchpoints**.
+
+---
+
+## 04 // Cloud-Native Multi-Temporal SAR Change Detection & Comparison Architecture
+
+### 1. Repeat-Pass Pairing Engine (`src/features/explorer/catalog.js`)
+- **Automatic Multi-Temporal Grouping**: Implemented `findComparablePairs(records)` and `getPartnerGranules(selectedRecord, allRecords)` to identify granules sharing the same orbital trajectory (`track`, `direction`, `frame`, `productType`) across different acquisition dates (12-day repeat cadence).
+- **Interactive Timeline Pairing (`CatalogTimeline.jsx`)**: Added `REPEAT PAIR` visual badges on matching observations alongside compact **`[A]`** and **`[B]`** quick-compare pills and 1-click **`⚡ Pair`** trigger.
+
+### 2. Real-Time Browser SAR Change Engine (`src/features/explorer/sarChangeEngine.js`)
+- **Zero-Download Mathematical Pipeline**: Co-registers Date A and Date B on a shared 512×512 geographic grid, applies a 5×5 uniform boxcar speckle filter in linear power, converts to calibrated backscatter (`-28 dB` to `-2 dB`), calculates Otsu thresholds, and generates 24-bin bimodal backscatter histograms.
+- **4-Class Surface/Water Change Palette (Strict Team Zenith Design System)**:
+  - `Class 0` (Unchanged Land): `rgba(0, 0, 0, 0)` (100% transparent so 3D terrain shows through).
+  - `Class 1` (Permanent Water): `#4C1D95` (`rgba(76, 29, 149, 215)`).
+  - `Class 2` (New Water / Flood): `#E11D48` (`rgba(225, 29, 72, 245)`).
+  - `Class 3` (Water Lost / Receded): `#C4B5FD` (`rgba(196, 181, 253, 230)`).
+  - `Continuous ΔdB Shift`: Diverging Crimson (`#E11D48`) ↔ Transparent Obsidian ↔ Violet (`#8B5CF6`).
+- **Fast In-Memory Recomputation (< 12 ms)**: Dragging the dB threshold slider scrubs classification and updates `km²` metrics at 60 FPS without reloading images.
+- **Deterministic Procedural Fallback**: Generates realistic SAR radar terrain if an asset lacks browse PNGs, ensuring comparisons never crash.
+
+### 3. Interactive 3D Cesium Split-Swipe Curtain (`GlobeViewer.jsx` & `ComparePairBar.jsx`)
+- **Top HUD Comparison Bar (`ComparePairBar.jsx`)**: Floating frosted glass HUD displaying Date A vs Date B, interval days, track/frame telemetry, layer mode switcher (**`4-Class Flood Mask`** | **`Split-Swipe Curtain (A ◄► B)`** | **`Backscatter ΔdB`**), opacity slider, and **`Swap A/B`**.
+- **Cesium SplitDirection Before/After Curtain**: In curtain mode, binds `Cesium.SplitDirection.LEFT` to Date A and `Cesium.SplitDirection.RIGHT` to Date B, synchronized with `viewer.scene.splitPosition` and an interactive alabaster/crimson draggable handle across the globe.
+
+### 5. Cross-Location Dual-Region SAR Comparison & Global Live ASF Search Fix
+- **Live ASF Search Unlocked for Any Global Coordinate (`api/asf-search.js`)**:
+  - Eliminated the requirement for `EARTHDATA_TOKEN` on search queries (`https://api.daac.asf.alaska.edu/services/search/param` is a public NASA CMR endpoint).
+  - Users can now select any preset (*Bengal Delta*, *Eastern Himalayas*, *Sundarbans Coast*, *Svalbard Arctic*) or enter ANY custom latitude and longitude across Earth, returning live NASA granules without HTTP 500 errors.
+- **Cross-Location Comparison Engine (`sarChangeEngine.js`)**:
+  - Computes geodesic Haversine distance `separationKm` between Granule A and Granule B centroids.
+  - When `separationKm > 80 km`, automatically switches from repeat-pass interferometric co-registration into **Cross-Location Dual-Region SAR Comparative Analysis**, computing water fractions (`waterKm2A`, `waterKm2B`), water area differentials (`waterDiffKm2`), speckle statistics, and comparative bimodal backscatter histograms between the two distinct biomes.
+- **Dual-Region 3D Globe Draping (`GlobeViewer.jsx`)**:
+  - In cross-location mode, drapes Granule A over `boundsA` and Granule B over `boundsB` simultaneously on the 3D globe.
+  - Automatically adjusts Cesium camera altitude and look-at point based on `separationKm` so both distinct geographic footprints are simultaneously visible in space.
+- **Top HUD & Bottom Deck Adaptation (`ComparePairBar.jsx` & `RecordDetails.jsx`)**:
+  - Compare HUD displays `CROSS-LOCATION · <N> km SEPARATION` and `Dual-Region Radar Footprints (A & B)`.
+  - Panel 04 displays both geographic locations, coordinates, and geodesic separation.
+  - Panel 05 displays water surface areas for both regions, the water area differential, and comparative backscatter distribution curves.
+  - Supports pinning Date A in one location, navigating or querying any other region or preset on Earth, and pinning Date B to compare any two places on the planet.
+
+
