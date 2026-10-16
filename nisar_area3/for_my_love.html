@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eva's 3D Journey: In Search of Her Missing Heart</title>
+    <style>
+        :root {
+            --plum: #48294a;
+            --rose: #d95988;
+            --gold: #f7c85c;
+        }
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #f5d8ea;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            color: var(--plum);
+            position: relative;
+        }
+
+        .serif {
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            cursor: grab;
+        }
+        #gameCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* Pastel Glassmorphism */
+        .pastel-glass {
+            background: rgba(255, 250, 253, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 2px solid rgba(255, 255, 255, 0.96);
+            box-shadow: 0 16px 40px rgba(145, 75, 125, 0.24), 
+                        inset 0 2px 8px rgba(255, 255, 255, 0.9);
+        }
+
+        .pastel-btn {
+            background: linear-gradient(135deg, #ff8db6 0%, #c882ff 100%);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 24px rgba(200, 130, 255, 0.48);
+            cursor: pointer;
+            font-weight: 700;
+            border-radius: 999px;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        .pastel-btn:hover {
+            transform: translateY(-2px) scale(1.04);
+            box-shadow: 0 12px 28px rgba(200, 130, 255, 0.68);
+        }
+
+        .pastel-btn:active {
+            transform: translateY(1px) scale(0.97);
+        }
+
+        .secondary-btn {
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.88);
+            border: 1.5px solid #f4bfd6;
+            color: #69416b;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+        .secondary-btn:hover {
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        @keyframes floatCard {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 140, 190, 0.6)); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 18px rgba(255, 100, 170, 0.95)); transform: scale(1.07); }
+        }
+
+        .animate-float { animation: floatCard 4s ease-in-out infinite; }
+        .animate-glow { animation: pulseGlow 2.5s ease-in-out infinite; }
+
+        /* Screen Overlays */
+        .overlay-screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            transition: opacity 0.65s ease;
+        }
+
+        .hidden-ui {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        #titleScreen {
+            z-index: 40;
+            background: radial-gradient(circle at center, rgba(255, 225, 240, 0.68), rgba(220, 195, 250, 0.85));
+            backdrop-filter: blur(8px);
+        }
+
+        .card-container {
+            max-width: 510px;
+            width: 100%;
+            border-radius: 30px;
+            padding: 34px 28px;
+            text-align: center;
+            position: relative;
+        }
+
+        .pill-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 15px;
+            border-radius: 999px;
+            background: rgba(255, 226, 239, 0.95);
+            border: 1.5px solid #f9bad2;
+            color: #b5456b;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+
+        /* Top HUD */
+        #hudLayer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            padding: 14px 18px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
+        }
+
+        .hud-progress {
+            border-radius: 999px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .milestone-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-circle {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1.5px solid #f5b0cb;
+            background: rgba(255, 232, 242, 0.9);
+            color: #e87ca8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .badge-circle.unlocked {
+            background: linear-gradient(135deg, #ff85ad, #c688ff);
+            color: white;
+            border-color: white;
+            transform: scale(1.12);
+            box-shadow: 0 4px 14px rgba(212, 106, 155, 0.5);
+        }
+
+        .prog-connector {
+            width: 22px;
+            height: 4px;
+            background: #f5cce0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .prog-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(to right, #ff85ad, #b983ff);
+            transition: width 0.5s ease;
+        }
+
+        .hud-music {
+            border-radius: 20px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: auto;
+            max-width: 330px;
+        }
+
+        .icon-btn {
+            height: 30px;
+            min-width: 30px;
+            padding: 0 9px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.9);
+            background: #fce4f0;
+            color: #633966;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .icon-btn:hover { background: #f9cde3; }
+
+        /* Bottom 3D Controls */
+        #controlsLayer {
+            position: fixed;
+            bottom: 18px;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+            transition: opacity 0.6s ease;
+        }
+
+        .dpad-cluster {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .dpad-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .ctrl-btn {
+            width: 56px;
+            height: 54px;
+            border-radius: 18px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #5d3461;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            transition: transform 0.1s ease;
+        }
+        .ctrl-btn:active {
+            transform: scale(0.9);
+        }
+        .ctrl-btn-forward {
+            width: 68px;
+            height: 58px;
+            background: linear-gradient(135deg, rgba(255,235,244,0.95), rgba(242,222,255,0.95));
+        }
+
+        .letter-box {
+            background: rgba(255, 255, 255, 0.76);
+            border: 1.5px solid #fad2e4;
+            border-radius: 18px;
+            padding: 18px;
+            margin: 16px 0 20px;
+            text-align: left;
+            font-size: 14.5px;
+            line-height: 1.65;
+            color: #543657;
+        }
+        .letter-box p { margin-bottom: 10px; }
+
+        #memoryModal, #finaleModal {
+            z-index: 30;
+            background: rgba(65, 35, 70, 0.25);
+        }
+        #musicModal {
+            z-index: 50;
+            background: rgba(45, 25, 48, 0.4);
+            backdrop-filter: blur(5px);
+        }
+
+        .track-picker-row {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid #f7c6dc;
+            border-radius: 16px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+
+        @media (max-width: 640px) {
+            .hide-mobile { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top HUD -->
+    <div id="hudLayer" class="hidden-ui">
+        <div class="pastel-glass hud-progress">
+            <span class="hide-mobile" style="font-size: 13px; font-weight: 700; color: #744970;">Eva's 3D Journey:</span>
+            <div class="milestone-row">
+                <button onclick="focusMemoryInfo(0)" id="badge-0" title="12th September" class="badge-circle">♥</button>
+                <div class="prog-connector"><div id="prog-line-1" class="prog-fill"></div></div>
+                <button onclick="focusMemoryInfo(1)" id="badge-1" title="The Promise Ring" class="badge-circle">♥</button>
+                <div class="prog-connector"><div id="prog-line-2" class="prog-fill"></div></div>
+                <button onclick="focusMemoryInfo(2)" id="badge-2" title="Pikachu Companion" class="badge-circle">♥</button>
+                <div class="prog-connector"><div id="prog-line-3" class="prog-fill"></div></div>
+                <button onclick="focusMemoryInfo(3)" id="badge-3" title="Rhyme the Penguin" class="badge-circle" style="background:#fff4d4; border-color:#f5c562;">🐧</button>
+            </div>
+        </div>
+
+        <div class="pastel-glass hud-music">
+            <div style="overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">
+                <div id="trackTitleDisplay" style="font-size:12px; font-weight:700; color:#573459;">1. Visions of Gideon</div>
+                <div id="trackSubDisplay" style="font-size:10px; color:#936b96;">Dreamy 3D Piano Synth</div>
+            </div>
+            <div style="display:flex; gap:5px;">
+                <button onclick="toggleMusicPlay()" class="icon-btn" title="Play / Pause"><span id="playPauseIcon">⏸</span></button>
+                <button onclick="switchTrack()" class="icon-btn" title="Next Song">⏭ Next</button>
+                <button onclick="toggleMusicModal()" class="icon-btn" title="Load Custom MP3s">🎵</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Opening Title Screen -->
+    <div id="titleScreen" class="overlay-screen">
+        <div class="pastel-glass card-container animate-float">
+            <div class="pill-badge">✨ A 3D Interactive Gift For Princess Eva ✨</div>
+            <h1 class="serif" style="font-size: clamp(32px, 6vw, 46px); font-weight: 700; margin-bottom: 4px;">Eva’s Journey</h1>
+            <p class="serif" style="font-style: italic; font-size: clamp(18px, 3.5vw, 23px); color: #a85073; margin-bottom: 18px;">
+                In Search of Her Missing Heart
+            </p>
+
+            <div style="display:flex; justify-content:center; align-items:center; gap:16px; margin: 14px 0 20px;">
+                <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg,#ffd1e3,#ffe9f2); display:flex; align-items:center; justify-content:center; font-size:26px; border:2px solid white;">👑</div>
+                <div style="font-size:24px;" class="animate-glow">💖</div>
+                <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg,#e5d1ff,#f2e8ff); display:flex; align-items:center; justify-content:center; font-size:26px; border:2px solid white;">🐧</div>
+            </div>
+
+            <p style="font-size: 14.5px; line-height: 1.6; color: #634366; margin-bottom: 24px; padding: 0 6px;">
+                Step onto the starlit rose-quartz bridge stretching across a 3D pastel dreamscape. Walk forward through our cherished memories to where your penguin, <strong>Rhyme</strong>, is holding your heart.
+            </p>
+
+            <button onclick="startJourney()" class="pastel-btn" style="padding: 14px 36px; font-size: 18px;">
+                <span>Enter the 3D World</span>
+                <span>✨</span>
+            </button>
+
+            <p style="font-size: 11.5px; color: #8c678f; margin-top: 16px;">
+                Hold <strong>Up Arrow / W</strong> (or the <strong>▲ Button</strong>) to walk forward into the horizon • Drag screen to look around
+            </p>
+        </div>
+    </div>
+
+    <!-- Memory Popup Modal -->
+    <div id="memoryModal" class="overlay-screen hidden-ui">
+        <div class="pastel-glass card-container" style="max-width: 440px;">
+            <div id="memoryBadgeTag" class="pill-badge">Memory I</div>
+            <div id="memoryIconBox" style="font-size: 42px; margin: 4px 0 10px;" class="animate-glow">🗓️✨</div>
+            <h2 id="memoryTitle" class="serif" style="font-size: 30px; margin-bottom: 12px;">12th September</h2>
+            <p id="memoryBody" style="font-size: 15px; line-height: 1.65; color: #5e3f61; margin-bottom: 22px;"></p>
+            <button onclick="closeMemoryModal()" class="pastel-btn" style="padding: 11px 28px; font-size: 15px;">
+                Keep Walking Forward 💖
+            </button>
+        </div>
+    </div>
+
+    <!-- Finale Reunion Modal ("Que Sera Sera") -->
+    <div id="finaleModal" class="overlay-screen hidden-ui">
+        <div class="pastel-glass card-container" style="max-width: 530px; max-height: 92vh; overflow-y: auto;">
+            <div class="pill-badge" style="background: #fff3d1; border-color: #f6c967; color: #a35e1d;">
+                👑 Princess Eva & Rhyme the Penguin 🐧
+            </div>
+
+            <h2 class="serif" style="font-style: italic; font-size: clamp(32px, 5vw, 44px); margin-bottom: 4px;">
+                “Que Sera Sera”
+            </h2>
+            <p style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #b56584; font-weight: 700;">
+                Whatever Will Be, Will Be — So Long As It’s You & Me
+            </p>
+
+            <div class="letter-box">
+                <p>My dearest <strong style="color: #c74d75;">Princess Eva</strong>,</p>
+                <p>
+                    From the moment I met you on <strong>12th September</strong>, to the promise inside the <strong>ring</strong> I gave you, and the adorable <strong>Pikachu</strong> you gifted me (still the best gift I have ever received!)—every single step has led my heart right to you.
+                </p>
+                <p>
+                    You never lost your heart, my love. I’ve been holding it safe and warm for you at the end of every road.
+                </p>
+                <p class="serif" style="text-align: right; font-style: italic; font-size: 18px; font-weight: 700; margin-bottom: 0;">
+                    Forever yours,<br>— Rhyme 🐧💖
+                </p>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+                <button onclick="sendHeartFireworks()" class="pastel-btn" style="padding: 10px 22px; font-size: 14px;">
+                    <span>Launch 3D Sky Lanterns</span>
+                    <span>🎆</span>
+                </button>
+                <button onclick="hideFinaleToAdmire()" class="secondary-btn">Explore the Sanctuary 🌸</button>
+                <button onclick="replayJourney()" class="secondary-btn">Walk Again ↺</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom MP3 Switcher Modal -->
+    <div id="musicModal" class="overlay-screen hidden-ui">
+        <div class="pastel-glass card-container" style="max-width: 450px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 class="serif" style="font-size: 24px;">Soundtrack & Custom MP3s</h3>
+                <button onclick="toggleMusicModal()" class="icon-btn" style="width: 30px; height: 30px;">✕</button>
+            </div>
+
+            <p style="font-size: 12.5px; color: #6b496e; line-height: 1.5; margin-bottom: 16px;">
+                The game automatically plays dreamy instrumental arrangements inspired by both songs. You can switch tracks anytime or load your own MP3 files from your device:
+            </p>
+
+            <div class="track-picker-row">
+                <div>
+                    <div style="font-size: 14px; font-weight: 700;">1. Visions of Gideon</div>
+                    <div id="track1SourceStatus" style="font-size: 11px; color: #916894;">Built-in Dreamy Piano Synth</div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <button onclick="selectTrack(0)" class="icon-btn">Play</button>
+                    <label class="icon-btn" style="background: #ead6ff;">
+                        Load MP3
+                        <input type="file" accept="audio/*" style="display: none;" onchange="loadCustomAudio(0, this)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="track-picker-row">
+                <div>
+                    <div style="font-size: 14px; font-weight: 700;">2. About You — The 1975</div>
+                    <div id="track2SourceStatus" style="font-size: 11px; color: #916894;">Built-in Ambient Lullaby Synth</div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                    <button onclick="selectTrack(1)" class="icon-btn">Play</button>
+                    <label class="icon-btn" style="background: #ead6ff;">
+                        Load MP3
+                        <input type="file" accept="audio/*" style="display: none;" onchange="loadCustomAudio(1, this)">
+                    </label>
+                </div>
+            </div>
+
+            <div style="text-align: right; margin-top: 14px;">
+                <button onclick="toggleMusicModal()" class="pastel-btn" style="padding: 8px 22px; font-size: 13px;">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom 3D Navigation Controls -->
+    <div id="controlsLayer" class="hidden-ui">
+        <div class="dpad-cluster">
+            <button id="btnUp" class="pastel-glass ctrl-btn ctrl-btn-forward animate-glow" title="Walk Forward into Horizon">▲</button>
+            <div class="dpad-row">
+                <button id="btnLeft" class="pastel-glass ctrl-btn" title="Move Left">◀</button>
+                <button id="btnDown" class="pastel-glass ctrl-btn" title="Step Back">▼</button>
+                <button id="btnRight" class="pastel-glass ctrl-btn" title="Move Right">▶</button>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: auto;">
+            <div id="distanceIndicator" class="pastel-glass" style="padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #6e4270;">
+                Distance to Rhyme: <span id="distMeters">300</span>m 🐧
+            </div>
+            <div id="contextPromptWrap" class="hidden-ui">
+                <button onclick="triggerNearbyMemory()" class="pastel-btn" style="padding: 12px 22px; font-size: 14px;">
+                    <span id="interactPromptText">Open Memory</span>
+                    <span>✨</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        function drawRoundRectPath(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        // ============================================================================
+        // 3D WORLD & PERSPECTIVE ENGINE
+        // ============================================================================
+        const FOCAL_LENGTH = 520;
+        const PATH_END_Z = 3400;
+        let gameStarted = false;
+        let gameTime = 0;
+        let activeModalMemoryIndex = null;
+
+        // Interactive 3D Camera Look-Around
+        let lookYaw = 0;
+        let lookPitch = 0;
+        let targetYaw = 0;
+        let targetPitch = 0;
+        let isDraggingCamera = false;
+        let lastPointerX = 0;
+        let lastPointerY = 0;
+
+        const keys = { up: false, down: false, left: false, right: false, hop: false };
+
+        // Princess Eva in 3D Space (x = left/right on bridge, y = jump height, z = depth along road)
+        const eva = {
+            x: 0,
+            y: 0,
+            z: 180,
+            vx: 0,
+            vy: 0,
+            vz: 0,
+            walkCycle: 0,
+            isMoving: false,
+            facing: 1 // 1 = into horizon, -1 = toward camera
+        };
+
+        // Camera trails smoothly behind Eva
+        const camera = {
+            x: 0,
+            y: 165,
+            z: -160
+        };
+
+        // Pikachu Companion in 3D Space
+        const pikachu = {
+            x: 75,
+            y: 0,
+            z: 2250,
+            unlocked: false,
+            hopPhase: 0,
+            happyBounce: 0
+        };
+
+        // Rhyme the Penguin at the Grand Sanctuary
+        const rhymePenguin = {
+            x: 0,
+            y: 0,
+            z: 3150
+        };
+
+        // Story Milestones along the 3D Z-Corridor
+        const memories = [
+            {
+                id: 0,
+                z: 850,
+                badge: "Memory I • Where It Began",
+                icon: "🗓️🌸",
+                title: "12th September",
+                shortLabel: "12th September Arch",
+                discovered: false,
+                body: "On the 12th of September, the universe quietly aligned so our paths would cross. From that very first day, the skies turned softer, the world grew warmer, and my heart knew it had found someone truly extraordinary—my Princess Eva."
+            },
+            {
+                id: 1,
+                z: 1550,
+                badge: "Memory II • A Circle of Promise",
+                icon: "💍✨",
+                title: "The Ring I Gave You",
+                shortLabel: "The Promise Ring",
+                discovered: false,
+                body: "A delicate ring, holding a promise that has no beginning and no end. When I gave you that ring, I wished for every tomorrow of mine to have your smile in it—a tiny golden reminder that you are cherished beyond words."
+            },
+            {
+                id: 2,
+                z: 2250,
+                badge: "Memory III • My Favorite Treasure",
+                icon: "⚡💛",
+                title: "Your Pikachu Gift",
+                shortLabel: "Pikachu Shrine",
+                discovered: false,
+                body: "Out of everything in the world, the Pikachu you gave me remains the best gift I have ever received! Every time I look at it, it sparks pure joy in my heart. Look—little Pikachu is so happy to see you that he's hopping right beside you now!"
+            },
+            {
+                id: 3,
+                z: 3150,
+                badge: "Final Sanctuary • Her Missing Heart",
+                icon: "🐧💖👑",
+                title: "Rhyme — Your Missing Heart",
+                shortLabel: "Rhyme the Penguin",
+                discovered: false,
+                body: "Que Sera Sera."
+            }
+        ];
+
+        // 3D Environment Props (Trees, Pillars, Clouds, Petals, Lanterns, Heart Fireworks)
+        const worldProps = [];
+        const stars = [];
+        const petals3D = [];
+        const lanterns3D = [];
+        const hearts3D = [];
+
+        function getRoadCurveX(z) {
+            // Gentle, graceful S-curve winding toward the sanctuary
+            return Math.sin(z * 0.0022) * 85;
+        }
+
+        function project3D(wx, wy, wz) {
+            const dz = wz - camera.z;
+            if (dz <= 15) return null;
+            const scale = FOCAL_LENGTH / dz;
+            const horizonY = height * 0.43 + lookPitch;
+            const centerX = width * 0.5 + lookYaw;
+            return {
+                x: centerX + (wx - camera.x) * scale,
+                y: horizonY - (wy - camera.y) * scale,
+                scale: scale,
+                dz: dz
+            };
+        }
+
+        function init3DWorld() {
+            worldProps.length = 0;
+            stars.length = 0;
+            petals3D.length = 0;
+
+            for (let i = 0; i < 95; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * (height * 0.46),
+                    r: Math.random() * 1.8 + 0.5,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            // Line the 3D road with Sakura Blossom Trees & Glowing Street Lanterns
+            for (let z = 260; z <= 3350; z += 150) {
+                const curve = getRoadCurveX(z);
+                const side = (z / 150) % 2 === 0 ? 1 : -1;
+
+                // Left & Right Pastel Sakura Trees
+                worldProps.push({
+                    type: 'tree',
+                    x: curve - 240 - Math.random() * 90,
+                    y: 0,
+                    z: z + (Math.random() - 0.5) * 40,
+                    size: 0.85 + Math.random() * 0.35,
+                    tint: z % 300 === 0 ? '#ffc0da' : '#e6c4ff'
+                });
+                worldProps.push({
+                    type: 'tree',
+                    x: curve + 240 + Math.random() * 90,
+                    y: 0,
+                    z: z + (Math.random() - 0.5) * 40,
+                    size: 0.85 + Math.random() * 0.35,
+                    tint: z % 300 === 0 ? '#ffd2e6' : '#f2c8ff'
+                });
+
+                // Golden Fairy Lantern Posts along the bridge edge
+                worldProps.push({
+                    type: 'lamp',
+                    x: curve + side * 145,
+                    y: 0,
+                    z: z
+                });
+            }
+
+            // Floating 3D Pastel Clouds high in the sky
+            for (let z = 300; z <= 3800; z += 220) {
+                worldProps.push({
+                    type: 'cloud',
+                    x: (Math.random() - 0.5) * 1400,
+                    y: 340 + Math.random() * 180,
+                    z: z,
+                    size: 1 + Math.random() * 0.8
+                });
+            }
+
+            // 3D Swirling Cherry Blossom Petals
+            for (let i = 0; i < 75; i++) {
+                petals3D.push({
+                    x: (Math.random() - 0.5) * 700,
+                    y: Math.random() * 320,
+                    z: eva.z + Math.random() * 1200,
+                    vx: (Math.random() - 0.5) * 0.9,
+                    vy: -0.45 - Math.random() * 0.5,
+                    vz: -0.6 - Math.random() * 0.8,
+                    rot: Math.random() * Math.PI * 2,
+                    color: Math.random() > 0.4 ? '#ffb5d3' : '#ffe6f1'
+                });
+            }
+        }
+
+        function spawn3DHeartBurst(wx, wy, wz, count = 28) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const elev = (Math.random() - 0.2) * Math.PI;
+                const speed = 2 + Math.random() * 4.5;
+                hearts3D.push({
+                    x: wx,
+                    y: wy,
+                    z: wz,
+                    vx: Math.cos(angle) * Math.cos(elev) * speed,
+                    vy: Math.abs(Math.sin(elev)) * speed + 2,
+                    vz: Math.sin(angle) * Math.cos(elev) * speed,
+                    size: 11 + Math.random() * 10,
+                    alpha: 1,
+                    color: ['#ff5e97', '#ff9ebb', '#ffd166', '#c98aff'][Math.floor(Math.random() * 4)]
+                });
+            }
+        }
+
+        function spawn3DSkyLanterns(count = 16) {
+            for (let i = 0; i < count; i++) {
+                lanterns3D.push({
+                    x: getRoadCurveX(rhymePenguin.z) + (Math.random() - 0.5) * 750,
+                    y: 20 + Math.random() * 60,
+                    z: rhymePenguin.z - 250 + (Math.random() - 0.5) * 600,
+                    vy: 0.65 + Math.random() * 0.6,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        // ============================================================================
+        // DUAL-TRACK MUSIC ENGINE (Visions of Gideon + About You - The 1975)
+        // ============================================================================
+        let audioCtx = null;
+        let isMusicPlaying = false;
+        let currentTrackIndex = 0;
+        let synthSchedulerId = null;
+        let stepCounter = 0;
+        const customAudioElements = [null, null];
+
+        const trackMetadata = [
+            { title: "1. Visions of Gideon", sub: "Dreamy 3D Piano Synth" },
+            { title: "2. About You — The 1975", sub: "Ambient Shoegaze Lullaby Synth" }
+        ];
+
+        const NOTE_FREQ = {
+            'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
+            'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'F#4': 369.99, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88,
+            'C5': 523.25, 'D5': 587.33, 'E5': 659.25, 'F5': 698.46, 'F#5': 739.99, 'G5': 783.99, 'A5': 880.00
+        };
+
+        const gideonChords = [
+            { bass: 'F3', notes: ['A4', 'C5', 'E5', 'C5', 'A4', 'E5'] },
+            { bass: 'E3', notes: ['G4', 'B4', 'D5', 'E5', 'B4', 'G4'] },
+            { bass: 'D3', notes: ['F4', 'A4', 'C5', 'D5', 'A4', 'F4'] },
+            { bass: 'C3', notes: ['E4', 'G4', 'B4', 'C5', 'G4', 'E4'] }
+        ];
+
+        const aboutYouChords = [
+            { bass: 'D3', pad: ['F#4', 'A4', 'D5'], arp: ['D5', 'A4', 'F#5', 'D5', 'A4', 'F#4'] },
+            { bass: 'G3', pad: ['G4', 'B4', 'D5'], arp: ['D5', 'B4', 'G5', 'D5', 'B4', 'G4'] },
+            { bass: 'B3', pad: ['F#4', 'B4', 'D5'], arp: ['D5', 'A4', 'F#5', 'D5', 'B4', 'F#4'] },
+            { bass: 'A3', pad: ['E4', 'A4', 'C5'], arp: ['E5', 'A4', 'F#5', 'E5', 'A4', 'E4'] }
+        ];
+
+        function ensureAudioContext() {
+            try {
+                if (!audioCtx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) audioCtx = new AudioContextClass();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            } catch (e) {}
+        }
+
+        function playSoftPianoNote(freq, duration = 1.6, volume = 0.08, type = 'triangle') {
+            if (!audioCtx || !freq) return;
+            try {
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const subOsc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                subOsc.type = 'sine';
+                subOsc.frequency.setValueAtTime(freq * 2, now);
+
+                const subGain = audioCtx.createGain();
+                subGain.gain.setValueAtTime(volume * 0.25, now);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(volume, now + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.0008, now + duration);
+
+                osc.connect(gain);
+                subOsc.connect(subGain);
+                subGain.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                subOsc.start(now);
+                osc.stop(now + duration);
+                subOsc.stop(now + duration);
+            } catch (e) {}
+        }
+
+        function playWarmPad(freqs, duration = 2.8, volume = 0.035) {
+            if (!audioCtx) return;
+            try {
+                const now = audioCtx.currentTime;
+                freqs.forEach((f) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now);
+
+                    gain.gain.setValueAtTime(0.001, now);
+                    gain.gain.linearRampToValueAtTime(volume, now + 0.6);
+                    gain.gain.exponentialRampToValueAtTime(0.0008, now + duration);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration);
+                });
+            } catch (e) {}
+        }
+
+        function playSynthStep() {
+            if (!isMusicPlaying || customAudioElements[currentTrackIndex]) return;
+            ensureAudioContext();
+
+            if (currentTrackIndex === 0) {
+                const chordIdx = Math.floor(stepCounter / 6) % gideonChords.length;
+                const noteIdx = stepCounter % 6;
+                const chord = gideonChords[chordIdx];
+                if (noteIdx === 0) {
+                    playSoftPianoNote(NOTE_FREQ[chord.bass], 2.6, 0.09, 'sine');
+                    playWarmPad(chord.notes.slice(0, 3).map(n => NOTE_FREQ[n]), 2.5, 0.025);
+                }
+                playSoftPianoNote(NOTE_FREQ[chord.notes[noteIdx]], 1.7, 0.065, 'triangle');
+            } else {
+                const chordIdx = Math.floor(stepCounter / 6) % aboutYouChords.length;
+                const noteIdx = stepCounter % 6;
+                const chord = aboutYouChords[chordIdx];
+                if (noteIdx === 0) {
+                    playSoftPianoNote(NOTE_FREQ[chord.bass], 2.8, 0.1, 'sine');
+                    playWarmPad(chord.pad.map(n => NOTE_FREQ[n]), 2.8, 0.045);
+                }
+                playSoftPianoNote(NOTE_FREQ[chord.arp[noteIdx]], 1.4, 0.05, 'sine');
+            }
+            stepCounter++;
+        }
+
+        function startMusicEngine() {
+            ensureAudioContext();
+            isMusicPlaying = true;
+            updateMusicUI();
+            stopAllCustomAudio();
+            if (customAudioElements[currentTrackIndex]) {
+                customAudioElements[currentTrackIndex].play().catch(() => {});
+            }
+            if (!synthSchedulerId) {
+                playSynthStep();
+                synthSchedulerId = setInterval(playSynthStep, 430);
+            }
+        }
+
+        function toggleMusicPlay() {
+            ensureAudioContext();
+            isMusicPlaying = !isMusicPlaying;
+            if (!isMusicPlaying) stopAllCustomAudio();
+            else if (customAudioElements[currentTrackIndex]) customAudioElements[currentTrackIndex].play().catch(() => {});
+            updateMusicUI();
+        }
+
+        function switchTrack() { selectTrack((currentTrackIndex + 1) % 2); }
+
+        function selectTrack(index) {
+            currentTrackIndex = index;
+            stepCounter = 0;
+            stopAllCustomAudio();
+            if (isMusicPlaying && customAudioElements[currentTrackIndex]) {
+                customAudioElements[currentTrackIndex].play().catch(() => {});
+            }
+            updateMusicUI();
+            playSparkleChime();
+        }
+
+        function stopAllCustomAudio() {
+            customAudioElements.forEach(a => { if (a) a.pause(); });
+        }
+
+        function loadCustomAudio(trackIdx, inputEl) {
+            const file = inputEl.files && inputEl.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            if (customAudioElements[trackIdx]) customAudioElements[trackIdx].pause();
+            const audio = new Audio(url);
+            audio.loop = true;
+            customAudioElements[trackIdx] = audio;
+            trackMetadata[trackIdx].sub = "Custom MP3: " + file.name;
+            const statusEl = document.getElementById(trackIdx === 0 ? 'track1SourceStatus' : 'track2SourceStatus');
+            if (statusEl) statusEl.textContent = "Loaded: " + file.name;
+            selectTrack(trackIdx);
+            if (!isMusicPlaying) toggleMusicPlay();
+        }
+
+        function updateMusicUI() {
+            document.getElementById('trackTitleDisplay').textContent = trackMetadata[currentTrackIndex].title;
+            document.getElementById('trackSubDisplay').textContent = trackMetadata[currentTrackIndex].sub;
+            document.getElementById('playPauseIcon').textContent = isMusicPlaying ? '⏸' : '▶';
+        }
+
+        function toggleMusicModal() {
+            document.getElementById('musicModal').classList.toggle('hidden-ui');
+        }
+
+        function playSparkleChime() {
+            if (!audioCtx) return;
+            [523.25, 659.25, 783.99, 1046.50].forEach((n, idx) => {
+                setTimeout(() => playSoftPianoNote(n, 0.9, 0.055, 'triangle'), idx * 75);
+            });
+        }
+
+        function playPikaChime() {
+            if (!audioCtx) return;
+            playSoftPianoNote(880, 0.25, 0.07, 'sine');
+            setTimeout(() => playSoftPianoNote(1174.66, 0.4, 0.08, 'triangle'), 110);
+        }
+
+        // ============================================================================
+        // 3D RENDERING PIPELINE (Painter's Algorithm Back-to-Front)
+        // ============================================================================
+        function drawSkyAnd3DOcean() {
+            const horizonY = height * 0.43 + lookPitch;
+            const sunX = width * 0.5 + lookYaw * 0.45;
+            const sunY = horizonY - 45;
+
+            // 1. Pastel Sunset Sky Dome
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGrad.addColorStop(0, '#cdb4ff');
+            skyGrad.addColorStop(0.45, '#ffc4e1');
+            skyGrad.addColorStop(0.85, '#ffe3d8');
+            skyGrad.addColorStop(1, '#fff8fa');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, width, horizonY + 2);
+
+            // Twinkling Stars
+            stars.forEach(s => {
+                const a = 0.3 + 0.7 * Math.sin(gameTime * 2.2 + s.phase);
+                ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
+                ctx.beginPath();
+                ctx.arc((s.x + lookYaw * 0.2 + width) % width, s.y, s.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Glowing Horizon Sun / Moon Halo
+            const sunGlow = ctx.createRadialGradient(sunX, sunY, 12, sunX, sunY, 240);
+            sunGlow.addColorStop(0, 'rgba(255, 252, 240, 0.98)');
+            sunGlow.addColorStop(0.35, 'rgba(255, 195, 225, 0.65)');
+            sunGlow.addColorStop(1, 'rgba(255, 195, 225, 0)');
+            ctx.fillStyle = sunGlow;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 240, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Distant 3D Mountain Silhouettes on the Horizon
+            ctx.fillStyle = '#e5bfe8';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY);
+            for (let x = 0; x <= width; x += 35) {
+                const wx = x - lookYaw * 0.35;
+                const mh = Math.sin(wx * 0.005) * 34 + Math.cos(wx * 0.012) * 18 + 38;
+                ctx.lineTo(x, horizonY - mh);
+            }
+            ctx.lineTo(width, horizonY);
+            ctx.closePath();
+            ctx.fill();
+
+            // 2. 3D Mirror Ocean Floor below Horizon
+            const seaGrad = ctx.createLinearGradient(0, horizonY, 0, height);
+            seaGrad.addColorStop(0, '#ffe3ef');
+            seaGrad.addColorStop(0.25, '#f5c2e0');
+            seaGrad.addColorStop(0.65, '#dab6f2');
+            seaGrad.addColorStop(1, '#b89ee6');
+            ctx.fillStyle = seaGrad;
+            ctx.fillRect(0, horizonY, width, height - horizonY);
+
+            // Perspective Sun Reflection Shimmer on the Water
+            for (let i = 0; i < 22; i++) {
+                const progress = i / 22;
+                const ry = horizonY + Math.pow(progress, 1.7) * (height - horizonY);
+                const rw = (25 + progress * 220) + Math.sin(gameTime * 3 + i) * 18;
+                const rx = sunX + Math.sin(gameTime * 2 + i * 0.7) * (10 + progress * 25);
+                ctx.fillStyle = `rgba(255, 248, 252, ${0.45 - progress * 0.28})`;
+                ctx.fillRect(rx - rw * 0.5, ry, rw, 2 + progress * 4);
+            }
+        }
+
+        function draw3DRoadSegments() {
+            const stepZ = 40;
+            const startZ = Math.floor(Math.max(40, camera.z + 25) / stepZ) * stepZ;
+            const endZ = Math.min(PATH_END_Z + 250, camera.z + 2200);
+
+            // Draw back-to-front road quads
+            for (let z = endZ; z >= startZ; z -= stepZ) {
+                const z1 = z;
+                const z2 = z + stepZ;
+                const c1 = getRoadCurveX(z1);
+                const c2 = getRoadCurveX(z2);
+                const roadHalfWidth = 130;
+
+                const p1L = project3D(c1 - roadHalfWidth, 0, z1);
+                const p1R = project3D(c1 + roadHalfWidth, 0, z1);
+                const p2L = project3D(c2 - roadHalfWidth, 0, z2);
+                const p2R = project3D(c2 + roadHalfWidth, 0, z2);
+
+                if (!p1L || !p2L) continue;
+
+                const isAlt = Math.floor(z / stepZ) % 2 === 0;
+
+                // Soft bridge reflection pillar in water
+                ctx.fillStyle = 'rgba(195, 145, 190, 0.16)';
+                ctx.beginPath();
+                ctx.moveTo(p1L.x, p1L.y);
+                ctx.lineTo(p1R.x, p1R.y);
+                ctx.lineTo(p1R.x, p1R.y + 18 * p1R.scale);
+                ctx.lineTo(p1L.x, p1L.y + 18 * p1L.scale);
+                ctx.closePath();
+                ctx.fill();
+
+                // Main Pastel Cobblestone Road Quad
+                ctx.fillStyle = isAlt ? '#fff5f9' : '#ffe6f1';
+                ctx.beginPath();
+                ctx.moveTo(p1L.x, p1L.y);
+                ctx.lineTo(p1R.x, p1R.y);
+                ctx.lineTo(p2R.x, p2R.y);
+                ctx.lineTo(p2L.x, p2L.y);
+                ctx.closePath();
+                ctx.fill();
+
+                // Glowing Rose-Gold Side Curbs
+                ctx.strokeStyle = isAlt ? '#f7acc8' : '#e6a8d6';
+                ctx.lineWidth = Math.max(1, 5 * p1L.scale);
+                ctx.beginPath();
+                ctx.moveTo(p1L.x, p1L.y);
+                ctx.lineTo(p2L.x, p2L.y);
+                ctx.moveTo(p1R.x, p1R.y);
+                ctx.lineTo(p2R.x, p2R.y);
+                ctx.stroke();
+            }
+        }
+
+        function draw3DTree(prop) {
+            const p = project3D(prop.x, prop.y, prop.z);
+            if (!p || p.dz > 2200) return;
+            const s = p.scale * prop.size;
+            if (s < 0.03) return;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.scale(s, s);
+
+            // Soft ground/water shadow
+            ctx.fillStyle = 'rgba(155, 95, 140, 0.2)';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 38, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3D Shaded Trunk
+            ctx.fillStyle = '#9e7189';
+            ctx.beginPath();
+            ctx.moveTo(-12, 0);
+            ctx.quadraticCurveTo(-7, -70, -4, -135);
+            ctx.lineTo(6, -135);
+            ctx.quadraticCurveTo(10, -70, 14, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Volumetric 3D Blossom Canopy Spheres
+            const puffs = [
+                { x: 0, y: -165, r: 58 },
+                { x: -46, y: -140, r: 44 },
+                { x: 46, y: -140, r: 44 },
+                { x: -26, y: -190, r: 42 },
+                { x: 28, y: -190, r: 42 }
+            ];
+            ctx.fillStyle = prop.tint;
+            puffs.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Top Sunlight Highlight for 3D depth
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.beginPath();
+            ctx.arc(-14, -195, 26, 0, Math.PI * 2);
+            ctx.arc(20, -185, 22, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function draw3DLamp(prop) {
+            const p = project3D(prop.x, prop.y, prop.z);
+            if (!p || p.dz > 1900) return;
+            const s = p.scale;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.scale(s, s);
+
+            // Delicate white-gold post
+            ctx.strokeStyle = '#fff0f6';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -85);
+            ctx.stroke();
+
+            // Glowing Orb
+            const orbGlow = ctx.createRadialGradient(0, -90, 2, 0, -90, 28);
+            orbGlow.addColorStop(0, 'rgba(255, 245, 190, 0.95)');
+            orbGlow.addColorStop(1, 'rgba(255, 180, 220, 0)');
+            ctx.fillStyle = orbGlow;
+            ctx.beginPath();
+            ctx.arc(0, -90, 28, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fffbe6';
+            ctx.beginPath();
+            ctx.arc(0, -90, 7, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function draw3DCloud(prop) {
+            const p = project3D(prop.x, prop.y, prop.z);
+            if (!p || p.dz > 2600) return;
+            const s = p.scale * prop.size;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.scale(s, s);
+            ctx.fillStyle = 'rgba(255, 248, 253, 0.68)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 42, 0, Math.PI * 2);
+            ctx.arc(38, -10, 52, 0, Math.PI * 2);
+            ctx.arc(82, 0, 40, 0, Math.PI * 2);
+            ctx.arc(-36, 8, 32, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function draw3DMilestoneGate(m) {
+            const cx = getRoadCurveX(m.z);
+            const p = project3D(cx, 0, m.z);
+            if (!p || p.dz > 2200) return;
+            const s = p.scale;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.scale(s, s);
+
+            if (m.id === 0) {
+                // Memory 1: Grand 3D Starlight Arch spanning the road!
+                ctx.strokeStyle = '#fff5fa';
+                ctx.lineWidth = 14;
+                ctx.beginPath();
+                ctx.arc(0, -110, 125, Math.PI, 0, false);
+                ctx.moveTo(-125, -110);
+                ctx.lineTo(-125, 0);
+                ctx.moveTo(125, -110);
+                ctx.lineTo(125, 0);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#f7bdd4';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // Hanging 12th September Banner at top of 3D Arch
+                const sway = Math.sin(gameTime * 2.5) * 6;
+                ctx.fillStyle = '#fff9fc';
+                ctx.strokeStyle = '#f5a6c4';
+                ctx.lineWidth = 3;
+                drawRoundRectPath(ctx, sway - 68, -252, 136, 38, 14);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#ad3e68';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('12th SEPT ✨', sway, -227);
+            } else if (m.id === 1) {
+                // Memory 2: Giant 3D Levitating Diamond Ring Portal
+                const floatY = -125 + Math.sin(gameTime * 3) * 10;
+                const rotWidth = Math.max(22, Math.abs(Math.cos(gameTime * 1.4)) * 75);
+
+                // Radiant Golden Aura
+                const glow = ctx.createRadialGradient(0, floatY, 10, 0, floatY, 120);
+                glow.addColorStop(0, 'rgba(255, 235, 155, 0.65)');
+                glow.addColorStop(1, 'rgba(255, 190, 225, 0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(0, floatY, 120, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Rotating 3D Gold Ring Band
+                ctx.strokeStyle = '#f7c244';
+                ctx.lineWidth = 10;
+                ctx.beginPath();
+                ctx.ellipse(0, floatY, rotWidth, 75, 0, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Sparkling 3D Diamond on top of the ring
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#9ce0ff';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(0, floatY - 108);
+                ctx.lineTo(18, floatY - 88);
+                ctx.lineTo(0, floatY - 72);
+                ctx.lineTo(-18, floatY - 88);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else if (m.id === 2) {
+                // Memory 3: Pikachu's Cozy Cushion Shrine on the right side of the bridge
+                ctx.fillStyle = '#ffd4e6';
+                ctx.beginPath();
+                ctx.ellipse(75, -5, 45, 14, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff7fa';
+                ctx.strokeStyle = '#f7c96f';
+                ctx.lineWidth = 3;
+                drawRoundRectPath(ctx, 25, -135, 100, 32, 12);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#b5673b';
+                ctx.font = 'bold 13px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚡ BEST GIFT ⚡', 75, -114);
+            } else if (m.id === 3) {
+                // Final Sanctuary: Grand Sacred Blossom Tree & Golden Gazebo
+                ctx.fillStyle = '#fff2f7';
+                ctx.beginPath();
+                ctx.ellipse(0, -2, 165, 28, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Giant Sanctuary Sakura Tree behind Rhyme
+                ctx.fillStyle = '#8f6079';
+                ctx.beginPath();
+                ctx.moveTo(-34, -10);
+                ctx.quadraticCurveTo(-20, -130, -12, -260);
+                ctx.lineTo(20, -260);
+                ctx.quadraticCurveTo(28, -130, 42, -10);
+                ctx.closePath();
+                ctx.fill();
+
+                const crown = [
+                    { x: 0, y: -310, r: 120, c: '#ffbjd8' },
+                    { x: -105, y: -270, r: 95, c: '#ffd1e6' },
+                    { x: 105, y: -270, r: 95, c: '#ecc2ff' },
+                    { x: -60, y: -360, r: 90, c: '#ffe0ef' },
+                    { x: 65, y: -360, r: 90, c: '#ffc8e2' }
+                ];
+                crown.forEach(b => {
+                    ctx.fillStyle = b.c || '#ffc4dd';
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+
+            ctx.restore();
+        }
+
+        function draw3DRhymePenguin() {
+            const cx = getRoadCurveX(rhymePenguin.z);
+            const p = project3D(cx, 0, rhymePenguin.z);
+            if (!p || p.dz > 2200) return;
+            const s = p.scale * 1.25;
+            const bounce = Math.sin(gameTime * 3) * 3;
+
+            ctx.save();
+            ctx.translate(p.x, p.y - bounce * s);
+            ctx.scale(s, s);
+
+            // Ground Shadow
+            ctx.fillStyle = 'rgba(130, 75, 115, 0.25)';
+            ctx.beginPath();
+            ctx.ellipse(0, bounce, 28, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Orange Webbed Feet
+            ctx.fillStyle = '#ffa94d';
+            ctx.beginPath();
+            ctx.ellipse(-11, -2, 8, 4, 0, 0, Math.PI * 2);
+            ctx.ellipse(11, -2, 8, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Plump 3D Penguin Body
+            const bodyGrad = ctx.createRadialGradient(-6, -38, 5, 0, -32, 34);
+            bodyGrad.addColorStop(0, '#534b73');
+            bodyGrad.addColorStop(1, '#2f2946');
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, -32, 25, 31, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cream Belly Patch
+            ctx.fillStyle = '#fff9fc';
+            ctx.beginPath();
+            ctx.ellipse(0, -27, 17, 23, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cute Pink Bowtie
+            ctx.fillStyle = '#ff6398';
+            ctx.beginPath();
+            ctx.moveTo(0, -45);
+            ctx.lineTo(-9, -50);
+            ctx.lineTo(-9, -40);
+            ctx.closePath();
+            ctx.moveTo(0, -45);
+            ctx.lineTo(9, -50);
+            ctx.lineTo(9, -40);
+            ctx.closePath();
+            ctx.fill();
+
+            // Penguin Eyes & Rosy Cheeks
+            ctx.fillStyle = 'rgba(255, 135, 175, 0.65)';
+            ctx.beginPath();
+            ctx.ellipse(-10, -47, 4, 2.5, 0, 0, Math.PI * 2);
+            ctx.ellipse(10, -47, 4, 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#1f1930';
+            ctx.beginPath();
+            ctx.arc(-6, -51, 2.6, 0, Math.PI * 2);
+            ctx.arc(6, -51, 2.6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffb142';
+            ctx.beginPath();
+            ctx.moveTo(-4, -48);
+            ctx.lineTo(4, -48);
+            ctx.lineTo(0, -42);
+            ctx.closePath();
+            ctx.fill();
+
+            // Eva's Glowing Missing Heart floating right in front of Rhyme!
+            const heartY = -32 + Math.sin(gameTime * 4) * 5;
+            const aura = ctx.createRadialGradient(0, heartY, 2, 0, heartY, 42);
+            aura.addColorStop(0, 'rgba(255, 105, 165, 0.95)');
+            aura.addColorStop(1, 'rgba(255, 180, 215, 0)');
+            ctx.fillStyle = aura;
+            ctx.beginPath();
+            ctx.arc(0, heartY, 42, 0, Math.PI * 2);
+            ctx.fill();
+
+            drawHeartShape(0, heartY, 14, '#ff3d7f');
+            drawHeartShape(0, heartY - 1, 8, '#ff9ec2');
+
+            // Floating Nameplate
+            ctx.fillStyle = 'rgba(255, 250, 253, 0.94)';
+            drawRoundRectPath(ctx, -42, -92, 84, 22, 11);
+            ctx.fill();
+            ctx.fillStyle = '#63325c';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Rhyme 🐧💖', 0, -77);
+
+            ctx.restore();
+        }
+
+        function draw3DPikachu() {
+            const p = project3D(pikachu.x, pikachu.y, pikachu.z);
+            if (!p || p.dz > 2000) return;
+            const s = p.scale * 1.1;
+            const hop = Math.abs(Math.sin(pikachu.hopPhase)) * 10 + pikachu.happyBounce;
+
+            ctx.save();
+            ctx.translate(p.x, p.y - hop * s);
+            ctx.scale(s, s);
+
+            // Ground Shadow
+            ctx.fillStyle = 'rgba(140, 85, 125, 0.22)';
+            ctx.beginPath();
+            ctx.ellipse(0, hop, 15, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Lightning Tail
+            ctx.fillStyle = '#ffd84d';
+            ctx.strokeStyle = '#b8861b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(6, -12);
+            ctx.lineTo(18, -22);
+            ctx.lineTo(13, -25);
+            ctx.lineTo(25, -38);
+            ctx.lineTo(11, -33);
+            ctx.lineTo(14, -26);
+            ctx.lineTo(5, -17);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Chubby 3D Yellow Body & Head
+            ctx.fillStyle = '#ffde59';
+            drawRoundRectPath(ctx, -12, -26, 24, 24, 10);
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, -32, 12.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ears with Black Tips
+            ctx.beginPath();
+            ctx.ellipse(-7, -47, 3.8, 10, -0.28, 0, Math.PI * 2);
+            ctx.ellipse(7, -47, 3.8, 10, 0.28, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#2b2327';
+            ctx.beginPath();
+            ctx.arc(-9.5, -54, 3.4, 0, Math.PI * 2);
+            ctx.arc(9.5, -54, 3.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Red Electric Cheeks
+            ctx.fillStyle = '#ff5964';
+            ctx.beginPath();
+            ctx.arc(-7, -29, 3, 0, Math.PI * 2);
+            ctx.arc(7, -29, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#2b2327';
+            ctx.beginPath();
+            ctx.arc(-4.5, -33, 2, 0, Math.PI * 2);
+            ctx.arc(4.5, -33, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function draw3DPrincessEva() {
+            const p = project3D(eva.x, eva.y, eva.z);
+            if (!p) return;
+            const s = p.scale * 1.15;
+            const bob = eva.isMoving ? Math.abs(Math.sin(eva.walkCycle)) * 6 : Math.sin(gameTime * 2.5) * 1.5;
+            const swayX = eva.isMoving ? Math.sin(eva.walkCycle * 0.5) * 2.5 : 0;
+
+            ctx.save();
+            ctx.translate(p.x + swayX * s, p.y - bob * s);
+            ctx.scale(s, s);
+
+            // Soft 3D Ground Shadow
+            ctx.fillStyle = 'rgba(135, 75, 115, 0.26)';
+            ctx.beginPath();
+            ctx.ellipse(0, bob + eva.y * 0.7, 26, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Multi-Tiered 3D Royal Pastel Ballgown
+            const gownGrad = ctx.createRadialGradient(0, -38, 6, 0, -15, 38);
+            gownGrad.addColorStop(0, '#ff85b3');
+            gownGrad.addColorStop(0.55, '#ffb8d2');
+            gownGrad.addColorStop(1, '#ffe6f0');
+            ctx.fillStyle = gownGrad;
+            ctx.beginPath();
+            ctx.moveTo(-11, -46);
+            ctx.lineTo(11, -46);
+            ctx.quadraticCurveTo(28, -22, 31, -3);
+            ctx.quadraticCurveTo(0, 6, -31, -3);
+            ctx.quadraticCurveTo(-28, -22, -11, -46);
+            ctx.closePath();
+            ctx.fill();
+
+            // Golden Crinoline Scallop Trim
+            ctx.strokeStyle = '#f6c85f';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(-29, -5);
+            ctx.quadraticCurveTo(0, 4, 29, -5);
+            ctx.stroke();
+
+            // Royal Waist & Puff Sleeves
+            ctx.fillStyle = '#ff78a8';
+            drawRoundRectPath(ctx, -10, -52, 20, 16, 6);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffd6e6';
+            ctx.beginPath();
+            ctx.arc(-13, -45, 6.5, 0, Math.PI * 2);
+            ctx.arc(13, -45, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head
+            ctx.fillStyle = '#ffe5d8';
+            ctx.beginPath();
+            ctx.arc(0, -66, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (eva.facing === 1) {
+                // Seen from behind (walking into the 3D horizon): Flowing Chestnut-Berry Hair & Waist Bow!
+                const hairSway = Math.sin(eva.walkCycle) * 3;
+                ctx.fillStyle = '#4a263b';
+                ctx.beginPath();
+                ctx.arc(0, -66, 14.5, Math.PI, 0, false);
+                ctx.quadraticCurveTo(18, -45, 14 + hairSway, -24);
+                ctx.quadraticCurveTo(0, -18, -14 + hairSway, -24);
+                ctx.quadraticCurveTo(-18, -45, -14.5, -66);
+                ctx.closePath();
+                ctx.fill();
+
+                // Cute Pastel Satin Bow on the back of her gown
+                ctx.fillStyle = '#ff6ba0';
+                ctx.beginPath();
+                ctx.moveTo(0, -36);
+                ctx.lineTo(-12, -42);
+                ctx.lineTo(-10, -30);
+                ctx.closePath();
+                ctx.moveTo(0, -36);
+                ctx.lineTo(12, -42);
+                ctx.lineTo(10, -30);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Seen from the front (when stepping backward toward camera)
+                ctx.fillStyle = '#4a263b';
+                ctx.beginPath();
+                ctx.arc(0, -68, 14.5, Math.PI * 0.9, Math.PI * 2.1);
+                ctx.fill();
+
+                ctx.fillStyle = '#3d2235';
+                ctx.beginPath();
+                ctx.arc(-5, -66, 2, 0, Math.PI * 2);
+                ctx.arc(5, -66, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#a84c6c';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(0, -62, 3, 0.15, Math.PI - 0.15);
+                ctx.stroke();
+            }
+
+            // Golden Princess Tiara / Crown
+            ctx.fillStyle = '#ffd15c';
+            ctx.strokeStyle = '#d99b26';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(-9, -78);
+            ctx.lineTo(-10, -89);
+            ctx.lineTo(-4, -82);
+            ctx.lineTo(0, -92);
+            ctx.lineTo(4, -82);
+            ctx.lineTo(10, -89);
+            ctx.lineTo(9, -78);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#ff4d88';
+            ctx.beginPath();
+            ctx.arc(0, -83, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawHeartShape(x, y, size, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(0, size * 0.35);
+            ctx.bezierCurveTo(-size, -size * 0.4, -size * 0.5, -size, 0, -size * 0.45);
+            ctx.bezierCurveTo(size * 0.5, -size, size, -size * 0.4, 0, size * 0.35);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function draw3DParticles() {
+            // 3D Cherry Blossom Petals
+            petals3D.forEach(pt => {
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.z += pt.vz;
+                pt.rot += 0.03;
+
+                if (pt.y < 0 || pt.z < camera.z + 20) {
+                    pt.x = eva.x + (Math.random() - 0.5) * 650;
+                    pt.y = 220 + Math.random() * 140;
+                    pt.z = eva.z + 200 + Math.random() * 900;
+                }
+
+                const p = project3D(pt.x, pt.y, pt.z);
+                if (!p) return;
+                const sz = Math.max(2, 6 * p.scale);
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(pt.rot);
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, sz, sz * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // 3D Floating Sky Lanterns
+            for (let i = lanterns3D.length - 1; i >= 0; i--) {
+                const l = lanterns3D[i];
+                l.y += l.vy;
+                l.phase += 0.025;
+                const lx = l.x + Math.sin(l.phase) * 18;
+                const p = project3D(lx, l.y, l.z);
+                if (p) {
+                    const sz = Math.max(4, 18 * p.scale);
+                    ctx.save();
+                    const glow = ctx.createRadialGradient(p.x, p.y, 1, p.x, p.y, sz * 2.2);
+                    glow.addColorStop(0, 'rgba(255, 235, 155, 0.95)');
+                    glow.addColorStop(1, 'rgba(255, 165, 205, 0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, sz * 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffe299';
+                    drawRoundRectPath(ctx, p.x - sz * 0.45, p.y - sz * 0.6, sz * 0.9, sz * 1.2, 3);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                if (l.y > 700) lanterns3D.splice(i, 1);
+            }
+
+            // 3D Heart Burst Fireworks
+            for (let i = hearts3D.length - 1; i >= 0; i--) {
+                const h = hearts3D[i];
+                h.x += h.vx;
+                h.y += h.vy;
+                h.z += h.vz;
+                h.vy -= 0.09;
+                h.alpha -= 0.015;
+                if (h.alpha <= 0) {
+                    hearts3D.splice(i, 1);
+                    continue;
+                }
+                const p = project3D(h.x, h.y, h.z);
+                if (p) {
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, h.alpha);
+                    drawHeartShape(p.x, p.y, Math.max(4, h.size * p.scale * 1.4), h.color);
+                    ctx.restore();
+                }
+            }
+        }
+
+        // ============================================================================
+        // GAMEPLAY LOGIC & MILESTONE TRIGGERS
+        // ============================================================================
+        function update3DGame() {
+            gameTime += 0.016;
+
+            // Smooth camera look interpolation
+            lookYaw += (targetYaw - lookYaw) * 0.1;
+            lookPitch += (targetPitch - lookPitch) * 0.1;
+
+            if (gameStarted && activeModalMemoryIndex === null) {
+                eva.isMoving = false;
+                const forwardSpeed = 5.2;
+                const strafeSpeed = 3.6;
+
+                if (keys.up) {
+                    eva.vz = forwardSpeed;
+                    eva.facing = 1;
+                    eva.isMoving = true;
+                } else if (keys.down) {
+                    eva.vz = -forwardSpeed * 0.75;
+                    eva.facing = -1;
+                    eva.isMoving = true;
+                } else {
+                    eva.vz *= 0.82;
+                }
+
+                if (keys.left) {
+                    eva.vx = -strafeSpeed;
+                    eva.isMoving = true;
+                } else if (keys.right) {
+                    eva.vx = strafeSpeed;
+                    eva.isMoving = true;
+                } else {
+                    eva.vx *= 0.82;
+                }
+
+                // Gentle road-following assist when walking forward
+                const roadCenterBefore = getRoadCurveX(eva.z);
+                eva.z = Math.max(120, Math.min(rhymePenguin.z - 45, eva.z + eva.vz));
+                const roadCenterAfter = getRoadCurveX(eva.z);
+                eva.x += (roadCenterAfter - roadCenterBefore) + eva.vx;
+
+                // Keep Eva safely within the bridge rails
+                const maxOffset = 105;
+                eva.x = Math.max(roadCenterAfter - maxOffset, Math.min(roadCenterAfter + maxOffset, eva.x));
+
+                if (eva.isMoving) eva.walkCycle += 0.22;
+            }
+
+            // Jump physics
+            if (eva.y > 0 || eva.vy > 0) {
+                eva.y += eva.vy;
+                eva.vy -= 0.65;
+                if (eva.y <= 0) {
+                    eva.y = 0;
+                    eva.vy = 0;
+                }
+            }
+
+            // Pikachu 3D Companion AI
+            if (pikachu.unlocked) {
+                const targetX = eva.x + 54;
+                const targetZ = eva.z - 30;
+                pikachu.x += (targetX - pikachu.x) * 0.09;
+                pikachu.z += (targetZ - pikachu.z) * 0.09;
+                pikachu.hopPhase += 0.22;
+            } else {
+                pikachu.x = getRoadCurveX(memories[2].z) + 75;
+                pikachu.z = memories[2].z;
+                pikachu.hopPhase += 0.07;
+            }
+            if (pikachu.happyBounce > 0) pikachu.happyBounce *= 0.9;
+
+            // Smooth 3D Chase Camera
+            const desiredCamX = eva.x * 0.78 + getRoadCurveX(eva.z) * 0.22;
+            const desiredCamZ = eva.z - 330;
+            camera.x += (desiredCamX - camera.x) * 0.09;
+            camera.z += (desiredCamZ - camera.z) * 0.09;
+
+            // Update Distance Indicator
+            const remainingMeters = Math.max(0, Math.round((rhymePenguin.z - 55 - eva.z) / 10));
+            const distEl = document.getElementById('distMeters');
+            if (distEl) distEl.textContent = remainingMeters;
+
+            // Check proximity to 3D Milestones
+            let nearbyMilestone = null;
+            memories.forEach((m, idx) => {
+                const distZ = Math.abs(eva.z - m.z);
+                if (distZ < 75) {
+                    nearbyMilestone = m;
+                    if (!m.discovered && activeModalMemoryIndex === null) {
+                        unlockMemory(idx);
+                    }
+                }
+            });
+
+            const promptWrap = document.getElementById('contextPromptWrap');
+            const promptText = document.getElementById('interactPromptText');
+            if (nearbyMilestone && activeModalMemoryIndex === null) {
+                promptWrap.classList.remove('hidden-ui');
+                promptText.textContent = nearbyMilestone.id === 3 ? "Embrace Rhyme 🐧💖" : `Inspect: ${nearbyMilestone.shortLabel}`;
+            } else {
+                promptWrap.classList.add('hidden-ui');
+            }
+        }
+
+        function unlockMemory(index) {
+            const m = memories[index];
+            m.discovered = true;
+            keys.up = keys.down = keys.left = keys.right = false;
+
+            const badge = document.getElementById(`badge-${index}`);
+            if (badge) badge.classList.add('unlocked');
+            if (index > 0) {
+                const line = document.getElementById(`prog-line-${index}`);
+                if (line) line.style.width = '100%';
+            }
+
+            spawn3DHeartBurst(getRoadCurveX(m.z), 85, m.z, 30);
+
+            if (index === 2) {
+                pikachu.unlocked = true;
+                pikachu.happyBounce = 28;
+                playPikaChime();
+            } else {
+                playSparkleChime();
+            }
+
+            if (index === 3) openFinaleReunion();
+            else openMemoryModal(index);
+        }
+
+        function openMemoryModal(index) {
+            const m = memories[index];
+            activeModalMemoryIndex = index;
+            document.getElementById('memoryBadgeTag').textContent = m.badge;
+            document.getElementById('memoryIconBox').textContent = m.icon;
+            document.getElementById('memoryTitle').textContent = m.title;
+            document.getElementById('memoryBody').textContent = m.body;
+            document.getElementById('memoryModal').classList.remove('hidden-ui');
+        }
+
+        function closeMemoryModal() {
+            document.getElementById('memoryModal').classList.add('hidden-ui');
+            activeModalMemoryIndex = null;
+        }
+
+        function openFinaleReunion() {
+            activeModalMemoryIndex = 3;
+            spawn3DSkyLanterns(18);
+            spawn3DHeartBurst(getRoadCurveX(rhymePenguin.z), 95, rhymePenguin.z, 45);
+            document.getElementById('finaleModal').classList.remove('hidden-ui');
+        }
+
+        function hideFinaleToAdmire() {
+            document.getElementById('finaleModal').classList.add('hidden-ui');
+            activeModalMemoryIndex = null;
+            spawn3DSkyLanterns(10);
+        }
+
+        function sendHeartFireworks() {
+            playSparkleChime();
+            spawn3DSkyLanterns(12);
+            spawn3DHeartBurst(getRoadCurveX(rhymePenguin.z), 120, rhymePenguin.z, 40);
+        }
+
+        function triggerNearbyMemory() {
+            memories.forEach((m, idx) => {
+                if (Math.abs(eva.z - m.z) < 95) {
+                    if (idx === 3) openFinaleReunion();
+                    else openMemoryModal(idx);
+                }
+            });
+        }
+
+        function focusMemoryInfo(index) {
+            if (!gameStarted) return;
+            if (memories[index].discovered) {
+                if (index === 3) openFinaleReunion();
+                else openMemoryModal(index);
+            }
+        }
+
+        function startJourney() {
+            gameStarted = true;
+            document.getElementById('titleScreen').classList.add('hidden-ui');
+            document.getElementById('hudLayer').classList.remove('hidden-ui');
+            document.getElementById('controlsLayer').classList.remove('hidden-ui');
+            startMusicEngine();
+            playSparkleChime();
+        }
+
+        function replayJourney() {
+            hideFinaleToAdmire();
+            eva.z = 180;
+            eva.x = getRoadCurveX(180);
+            eva.facing = 1;
+            pikachu.unlocked = false;
+            memories.forEach((m, idx) => {
+                m.discovered = false;
+                const badge = document.getElementById(`badge-${idx}`);
+                if (badge) badge.classList.remove('unlocked');
+                if (idx > 0) {
+                    const line = document.getElementById(`prog-line-${idx}`);
+                    if (line) line.style.width = '0%';
+                }
+            });
+        }
+
+        // ============================================================================
+        // INPUT LISTENERS (Keyboard + On-Screen 3D D-Pad + Camera Look Drag)
+        // ============================================================================
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+            if (e.key === ' ' && eva.y === 0 && gameStarted && activeModalMemoryIndex === null) {
+                eva.vy = 9.5;
+            }
+            if ((e.key === 'Enter' || e.key === ' ') && activeModalMemoryIndex !== null && activeModalMemoryIndex < 3) {
+                closeMemoryModal();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+        });
+
+        function bindHoldButton(btnId, dirKey) {
+            const btn = document.getElementById(btnId);
+            const start = (e) => { e.preventDefault(); keys[dirKey] = true; };
+            const end = (e) => { e.preventDefault(); keys[dirKey] = false; };
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+            btn.addEventListener('touchstart', start, { passive: false });
+            btn.addEventListener('touchend', end, { passive: false });
+            btn.addEventListener('touchcancel', end, { passive: false });
+        }
+
+        bindHoldButton('btnUp', 'up');
+        bindHoldButton('btnDown', 'down');
+        bindHoldButton('btnLeft', 'left');
+        bindHoldButton('btnRight', 'right');
+
+        // 3D Camera Tilt / Orbit on Mouse or Touch Drag
+        canvas.addEventListener('mousedown', (e) => {
+            isDraggingCamera = true;
+            lastPointerX = e.clientX;
+            lastPointerY = e.clientY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (isDraggingCamera) {
+                targetYaw = Math.max(-140, Math.min(140, targetYaw + (e.clientX - lastPointerX) * 0.6));
+                targetPitch = Math.max(-60, Math.min(60, targetPitch + (e.clientY - lastPointerY) * 0.4));
+                lastPointerX = e.clientX;
+                lastPointerY = e.clientY;
+            } else {
+                // Subtle parallax head-tracking with mouse movement
+                targetYaw = ((e.clientX / width) - 0.5) * -55;
+                targetPitch = ((e.clientY / height) - 0.5) * -28;
+            }
+        });
+        window.addEventListener('mouseup', () => { isDraggingCamera = false; });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDraggingCamera = true;
+                lastPointerX = e.touches[0].clientX;
+                lastPointerY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (isDraggingCamera && e.touches.length === 1) {
+                targetYaw = Math.max(-120, Math.min(120, targetYaw + (e.touches[0].clientX - lastPointerX) * 0.5));
+                targetPitch = Math.max(-50, Math.min(50, targetPitch + (e.touches[0].clientY - lastPointerY) * 0.35));
+                lastPointerX = e.touches[0].clientX;
+                lastPointerY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', () => {
+            isDraggingCamera = false;
+            targetYaw *= 0.5;
+            targetPitch *= 0.5;
+        });
+
+        function handleResize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            init3DWorld();
+        }
+        window.addEventListener('resize', handleResize);
+
+        // ============================================================================
+        // MAIN 3D RENDER LOOP
+        // ============================================================================
+        function gameLoop() {
+            ctx.clearRect(0, 0, width, height);
+
+            update3DGame();
+            drawSkyAnd3DOcean();
+            draw3DRoadSegments();
+
+            // Collect all 3D entities & sort from farthest Z to closest Z (Painter's Algorithm)
+            const renderQueue = [];
+
+            worldProps.forEach(prop => {
+                if (prop.z > camera.z + 20 && prop.z < camera.z + 2500) {
+                    renderQueue.push({ z: prop.z, draw: () => {
+                        if (prop.type === 'tree') draw3DTree(prop);
+                        else if (prop.type === 'lamp') draw3DLamp(prop);
+                        else if (prop.type === 'cloud') draw3DCloud(prop);
+                    }});
+                }
+            });
+
+            memories.forEach(m => {
+                if (m.z > camera.z + 20) {
+                    renderQueue.push({ z: m.z, draw: () => draw3DMilestoneGate(m) });
+                }
+            });
+
+            renderQueue.push({ z: rhymePenguin.z, draw: draw3DRhymePenguin });
+            renderQueue.push({ z: pikachu.z, draw: draw3DPikachu });
+            renderQueue.push({ z: eva.z, draw: draw3DPrincessEva });
+
+            renderQueue.sort((a, b) => b.z - a.z);
+            renderQueue.forEach(item => item.draw());
+
+            draw3DParticles();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        handleResize();
+        gameLoop();
+    </script>
+</body>
+</html>
