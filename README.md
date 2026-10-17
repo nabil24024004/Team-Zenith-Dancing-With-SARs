@@ -2,13 +2,13 @@
 
 <img src="./public/zenith-logo.png" alt="Team Zenith Emblem" width="130" />
 
-# TEAM ZENITH // DANCING WITH THE SARs
+# TEAM ZENITH // DANCING WITH SAR
 
 ### **NASA Space Apps Challenge 2026**
-*Sense by Exploring — Tracking Earth’s Endless Waltz of Surface Changes with NASA-ISRO Synthetic Aperture Radar (NISAR)*
+*Sense by Exploring — Tracking Earth’s Dynamic Surface Choreographies with NASA-ISRO Synthetic Aperture Radar (NISAR)*
 
 [![NASA Space Apps 2026](https://img.shields.io/badge/NASA_Space_Apps-2026-E11D48?style=for-the-badge&labelColor=08080C)](https://www.spaceappschallenge.org/)
-[![Mission](https://img.shields.io/badge/Mission-NISAR_L%26S_Band-8B5CF6?style=for-the-badge&labelColor=08080C)](#03--orbital-instrument--nisar-architecture)
+[![Mission](https://img.shields.io/badge/Mission-NISAR_L%26S_Band-8B5CF6?style=for-the-badge&labelColor=08080C)](#03--orbital-instrument--cloud-architecture)
 [![CesiumJS 3D](https://img.shields.io/badge/CesiumJS-3D_Terrain_Globe-E11D48?style=for-the-badge&labelColor=08080C)](#05--nisar-mission-data-explorer-dashboard--user-guide)
 [![Supabase Cloud](https://img.shields.io/badge/Supabase-PostGIS_%2B_Storage_CDN-8B5CF6?style=for-the-badge&logo=supabase&logoColor=white&labelColor=08080C)](#07--environment-variables--supabase-setup)
 [![React 18](https://img.shields.io/badge/React-18.3-F4F4F6?style=for-the-badge&logo=react&logoColor=white&labelColor=08080C)](https://react.dev/)
@@ -20,23 +20,24 @@
 
 ## 01 // Challenge Overview
 
-> *"Earth’s surface is an endless dance of natural processes and human activities, but these changes are often difficult to visualize, understand, and communicate. From wetland loss to forest wildfires, earthquakes, farming activities, glacier movement, and more, Earth is in a constant waltz of surface changes."*
+> *"Discover how radar reveals millimeter-scale changes on Earth’s surface — penetrating clouds, smoke, and polar night. From wetland subsidence to forest wildfires, fault slips, crop growth, and glacier acceleration, Earth is in a constant waltz of surface transformations."*
 
-**Team Zenith** presents the interactive observatory and 3D orbital field console for **Dancing with the SARs**—built for the **NASA Space Apps Challenge 2026**. By combining dual-frequency radar remote sensing from the joint **NASA–ISRO Synthetic Aperture Radar (NISAR)** mission with a **CesiumJS 3D Terrain Globe**, **authenticated NASA Earthdata Cloud streaming**, and a **Supabase PostGIS + Storage CDN backend**, our platform translates complex microwave backscatter, interferometric phase shifts (InSAR), and L3 soil moisture grids into an intuitive visual experience.
+**Team Zenith** presents the interactive observatory and 3D orbital data explorer for **Dancing with SAR**—built for the **NASA Space Apps Challenge 2026**. By combining dual-frequency radar remote sensing from the joint **NASA–ISRO Synthetic Aperture Radar (NISAR)** mission with a **CesiumJS 3D Terrain Globe**, **authenticated NASA Earthdata Cloud streaming**, and a **Supabase PostGIS + Storage CDN backend**, our platform translates complex microwave backscatter, interferometric phase shifts (InSAR), and L3 soil moisture grids into an intuitive, accessible visual experience.
 
 ---
 
-## 02 // Five Motions of a Living Planet
+## 02 // Six Perspectives on a Dynamic Planet
 
-Unlike optical instruments blinded by cloud cover, wildfire smoke, or polar winter darkness, NISAR illuminates Earth's surface day and night across five core surface-change choreographies:
+Unlike optical sensors blinded by cloud cover, wildfire smoke, or polar night, NISAR illuminates Earth's surface day and night across five core environmental choreographies—powered by an all-weather dual-band radar vision capability:
 
-| Index | Phenomenon | Code | Radar Band | Primary Telemetry | Reference Region |
+| Index | Perspective | Category | Radar Band | Key Telemetry / Feature | Reference Region |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **01** | **Glacier Movement** | `CRYO // GLACIER` | `L-Band (24 cm)` | `38.4 m/day` Ice-Stream Velocity | Jakobshavn Isbræ · `69.16° N` |
-| **02** | **Earthquakes** | `TECT // SEISMIC` | `L-Band InSAR` | `±14.2 cm` Line-of-Sight Slip | Anatolian Fault · `37.22° N` |
-| **03** | **Forest Wildfires** | `PYRO // CANOPY` | `L + S Dual Band` | `-6.8 dB` HV Canopy Backscatter | Boreal & Amazonia · `11.45° S` |
-| **04** | **Wetland Loss** | `HYDR // WETLAND` | `L-Band HH/VV` | `-18.5 mm/yr` Deltaic Subsidence | Sundarbans Delta · `21.94° N` |
-| **05** | **Farming Activities** | `AGRI // MOSAIC` | `S-Band (10 cm)` | `12-Day Cycle` Repeat-Pass Cadence | Indo-Gangetic Plain · `30.90° N` |
+| **01** | **Glacier Movement** | Surface Motion | `L-Band (24 cm)` | `38.4 m/day` Ice-Stream Velocity | Jakobshavn Isbræ · `69.160° N` |
+| **02** | **Earthquakes** | Crustal Slip | `L-Band InSAR` | `±14.2 cm` Line-of-Sight Deformation | Anatolian Fault · `37.220° N` |
+| **03** | **Forest Wildfires** | Biomass Disturbance | `L + S Dual Band` | `-6.8 dB` HV Canopy Backscatter | Boreal & Amazonia · `11.450° S` |
+| **04** | **Wetland Loss** | Hydrologic Change | `L-Band HH/VV` | `-18.5 mm/yr` Deltaic Subsidence | Sundarbans Delta · `21.940° N` |
+| **05** | **Farming Activities** | Agricultural Rhythm | `S-Band (10 cm)` | `12-Day Cycle` Repeat-Pass Cadence | Indo-Gangetic Plain · `30.900° N` |
+| **06** | **All-Weather Radar Vision** | Radar Capability | `L + S Dual Band` | `24 cm + 10 cm λ` All-Weather Penetration | Global Earth Orbit · `747 km` |
 
 ---
 
@@ -58,27 +59,33 @@ flowchart LR
 
 ## 04 // Design System & Landing Experience (`/`)
 
-- **Dark Obsidian & Alabaster Minimalism**: Engineered with a deep void-black (`#040406`) and obsidian (`#08080C`) palette paired with crisp alabaster typography (`#F4F4F6`) and restrained crimson/violet radar accents (`#E11D48`, `#FB7185`, `#8B5CF6`, `#A78BFA`).
-- **3D Planetary SAR Hero Globe (`EarthHorizonHero.jsx`)**: Interactive SVG spherical projection with full latitude/longitude graticule wireframe, continental landmass point-clouds, sweeping SAR swath corridors, geodesic telemetry arcs, and live phenomenon badges.
-- **Frosted Glass Cards (`SpotlightCard`) & CTAs (`GlassButton`)**: Multi-layered `backdrop-filter: blur(28px)` glassmorphic surfaces with specular highlights and spring-physics interactions.
-- **Scroll-Synced Frosted Navbar**: Real-time ScrollSpy section tracking (`01 Welcome` → `02 The Waltz` → `03 NISAR Mission` → `04 Team Zenith`).
+- **Dark Obsidian & Alabaster Minimalism**: Engineered with a deep void-black (`#040406`) and obsidian (`#08080C`) palette paired with crisp alabaster typography (`#F4F4F6`) and restrained crimson/violet radar accents (`#E11D48`, `#FB7185`, `#8B5CF6`, `#A78BFA`) — strictly zero cyan and zero gold.
+- **Plain-Language Scientific Clarity**: Clear, above-the-fold mission statement explaining radar technology in plain language alongside technical aerospace typography.
+- **3D Planetary SAR Hero Globe (`EarthHorizonHero.jsx`)**: Uncluttered visual focal point featuring 7 latitude parallels, 5 longitude meridian ellipses, continental point-cloud constellations, sweeping radar swaths, and high-contrast telemetry badge (`CRYO // GLACIER · 38.4 m/day · 12-DAY REPEAT PASS`).
+- **Scroll-Synced Frosted Navbar**: Real-time ScrollSpy navigation with descriptive tabs (`01 // Overview`, `02 // Earth Observations`, `03 // How Radar Works`, `04 // About the Team`) and primary CTA **`Open Data Explorer ↗`**.
 
 ---
 
 ## 05 // NISAR Mission Data Explorer (`/dashboard`) — User Guide
 
-Navigate to **`/dashboard`** (or click **`Field Console`** / **`NISAR Data ↗`** on the landing page) to launch the **NISAR 3D Mission Data Explorer**.
+Navigate to **`/dashboard`** (or click **`Open Data Explorer ↗`** on the landing page) to launch the **NISAR 3D Mission Data Explorer**.
 
-### Layout Overview (2-Tier Widescreen Command Center)
-- **Top Command Bar**: Live NASA ASF CMR spatial search presets, custom coordinate query inputs, and a one-click jump to the **561-Pixel L3 Soil Moisture Grid**.
-- **Compact Telemetry Metric Strip**: Real-time counts for `CATALOG RECORDS`, `VISIBLE RESULTS`, `PRODUCT TYPES`, and `ACQUISITION SPAN`.
-- **Tier 1 — Primary Spatial & Temporal Stage (`3-Column Grid`)**:
-  - **Columns 1–2 (`span 2`, Widescreen 3D Terrain Globe)**: Interactive **CesiumJS 3D Globe** with Cesium World Terrain elevation meshes, CARTO dark vector basemap tiles, orbital swath footprints, draped L-band SAR radar imagery, and the 561-pixel Svalbard L3 Soil Moisture point cloud.
-  - **Column 3 (`span 1`, Controls & Timeline Navigator)**: Unified **`01 // CONTROLS`** filter panel and **`03 // TIMELINE`** chronological acquisition list.
-- **Tier 2 — Full-Width 3-Column Inspection Deck**:
-  - **`04 // SELECTED RECORD`**: Granule metadata, `Download HDF5`, `Copy URL`, `Pin to Supabase`, and authenticated companion cloud assets.
-  - **`05 // AUTHENTICATED NISAR SAR IMAGERY`**: Real L-band SAR browse raster viewer, polarization channel selector, and **`Draped on 3D Globe`** toggle.
-  - **`06 // TELEMETRY & SUPABASE CLOUD`**: Live parsed `*_QA_SUMMARY.csv` verification checks and synced **Supabase Cloud Mission Watchpoints**.
+### Layout Architecture (Master Redesign Scientific Workspace)
+- **Top Command Station (`.x-earthdata-bar`)**: Sleek, human-friendly scientific command center:
+  - **Case Study Region Cards**: Direct access to verified Earth observation regions (*Bengal Delta* · 23.81°N, *Eastern Himalayas* · 27.65°N, *Sundarbans Coast* · 21.95°N, *Svalbard Arctic* · 77.52°N, and *Meghna Baseline* · 154 calibrated swaths) complete with coordinate tags and plain-English environmental descriptions.
+  - **Featured L3 Science Product**: Highlighted **`561-Pixel L3 Soil Moisture Grid`** card for instant fly-to over Svalbard with active violet glow.
+  - **Custom Global Coordinates Search Tool**: Labeled numeric fields for Latitude (`°N`) and Longitude (`°E`) with focus states and a dedicated **`Query NASA CMR`** CTA.
+  - **Live Telemetry & Recovery Strip**: Shield-verified connection status with a one-click **`Restore Baseline Archive`** action.
+- **Consolidated Horizontal Filter & Telemetry Toolbar (`CatalogFilters.jsx`)**: A sleek horizontal command bar integrating Product Type selector, Date From/To pickers, Reset button (`white-space: nowrap`), and real-time pass count / coverage metrics (`Matching Passes: N / Total`, `Coverage`, `12-Day Cycle`).
+- **Primary Geospatial Stage (70% / 30% Widescreen Bento Grid)**:
+  - **Left Column (70% width, 3D Terrain Globe)**: 590px-tall interactive **CesiumJS 3D Globe** with Cesium World Terrain elevation meshes, CARTO dark vector basemap tiles, orbital swath footprints, draped L-band SAR radar imagery, Svalbard 561-pixel L3 soil moisture point cloud, **translucent frosted-glass camera controls** (`3D Peaks`, `Svalbard L3`, `Target`, `Globe`, `L0B Strips`), docked `ComparePairBar`, and a **docked frosted-glass legend HUD** (`backdrop-filter: blur(18px)`) integrated directly inside the viewport bottom.
+  - **Right Column (30% width, Observation Timeline)**: Chronological acquisition timeline matched flush to the globe's full 590px height, with smooth vertical scrolling, repeat-pass pair badges, and non-overlapping 3-column flex layout (`[Rail] [Content] [Actions]`) so `[Pair]`, `[A]`, and `[B]` buttons never collide with granule IDs.
+- **Secondary Inspection Workbench (`RecordDetails.jsx`)**:
+  - Interactive multi-mode tab switcher (`Overview (3-Pane)`, `03 // Metadata & Assets`, `04 // SAR Browse`, `05 // QA & Database`):
+    - **`03 // Metadata & Assets`**: Granule metadata, standardized coordinates (`26.714° N, 89.772° E`), primary `Download HDF5`, `Copy URL`, `Pin Watchpoint`, and companion cloud assets (`QA Report PDF`, `QA Summary CSV`, `ISCE3 RunConfig YAML`, `ISO 19115 XML`) styled with `white-space: nowrap` and standard heights.
+    - **`04 // SAR Browse Imagery`**: Real L-band SAR browse raster viewer with multi-frequency polarization tabs, geocoded **`Draped on 3D Globe`** toggle, and direct full PNG view.
+    - **`05 // QA Telemetry & Database Watchpoints`**: Live parsed `*_QA_SUMMARY.csv` verification checks and synced **Mission Watchpoints** stored in the database.
+  - **Multi-Temporal Comparison Studio**: When comparing two granules, automatically expands into a specialized comparison suite featuring 4 change metric cards (Permanent Water, Flood Inundation, Water Receded, Net Delta), threshold sensitivity slider (-24 dB to -12 dB with Otsu bimodal auto detection), backscatter histogram, InSAR phase hygiene rules, and responsive stacking export CTAs (`Export Report JSON`, `Download PNG Mask`).
 
 ### How to Use Every Feature on `/dashboard`
 
@@ -87,15 +94,16 @@ Navigate to **`/dashboard`** (or click **`Field Console`** / **`NISAR Data ↗`*
    - **Zoom**: Scroll wheel (or pinch on trackpad).
    - **Tilt for 3D Mountain Relief**: Hold `Ctrl` (or `Cmd` on macOS) + left-click drag (or middle-click drag) to tilt the camera and inspect 3D mountain terrain in the Eastern Himalayas or Svalbard fjords.
    - **Select Any Footprint**: Click any SAR polygon on the globe (`Violet` = Ascending track, `Rose` = Descending track, `Crimson + White Border` = Selected) to fly the camera to that swath and automatically drape its real L-band radar image over the 3D terrain.
+   - **Inspect the In-Globe Legend**: Check the docked frosted-glass HUD at the bottom of the globe for track indicators, active draped SAR states, or dual-date change detection layers.
 
-2. **Query Live NASA ASF CMR Data by Region or Coordinates**:
-   - Use the preset buttons in the top command bar:
-     - **`Local Snapshot + L3 SME2`**: Restores the 153 Meghna–Brahmaputra SAR footprints + 1 Svalbard L3 Soil Moisture dataset.
-     - **`Live ASF · Bengal Delta`** (`23.81°N, 90.41°E`)
-     - **`Live ASF · Eastern Himalayas`** (`27.65°N, 91.75°E`)
-     - **`Live ASF · Sundarbans Coast`** (`21.95°N, 89.18°E`)
-     - **`Live ASF · Svalbard Arctic`** (`77.52°N, 13.94°E`)
-   - Or enter any custom **`Lat (°N)`** and **`Lon (°E)`** in the input boxes and click **`Query ASF`** to fetch live NISAR granules anywhere on Earth.
+2. **Query Live NASA Earthdata Cloud Data by Region or Coordinates**:
+   - Select any of the scientifically rich case study cards in the Command Station:
+     - **`Bengal Delta`** (`23.81°N · 90.41°E` — Monsoon Inundation & River Hydrology)
+     - **`Eastern Himalayas`** (`27.65°N · 91.75°E` — Mountain Glaciers & Elevation Meshes)
+     - **`Sundarbans Coast`** (`21.95°N · 89.18°E` — Tidal Mangrove & Shoreline Loss)
+     - **`Svalbard Arctic`** (`77.52°N · 13.94°E` — Permafrost & Cryosphere Calibration)
+     - **`Meghna Baseline`** (Calibrated Archive — 154 full-coverage swaths)
+   - Or enter custom coordinates into the **`Lat (°N)`** and **`Lon (°E)`** fields and click **`Query NASA CMR`** to fetch live NISAR granules anywhere on Earth. Click **`Restore Baseline Archive`** at any time to return to the local calibrated dataset.
 
 3. **Inspect the 561-Pixel L3 Soil Moisture (`SME2`) EASE-Grid 2.0**:
    - Click **`561-Pixel L3 Soil Moisture Grid`** in the top command bar.

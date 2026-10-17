@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Activity,
-  ArrowUpRight,
   Flame,
   Mountain,
   Radar,
@@ -101,6 +100,23 @@ export const WALTZ_PHENOMENA = [
     description:
       'Capturing the seasonal choreography of crop growth, irrigation moisture, and harvest cycles with dual-frequency polarimetric radar.',
     icon: Sprout,
+  },
+  {
+    id: 'radar',
+    index: '06',
+    code: 'INST // DUAL-BAND',
+    title: 'All-Weather Vision',
+    shortTitle: 'SWEEP SAR',
+    subtitle: 'L & S Dual-Band Synthetic Aperture Radar',
+    band: 'L+S DUAL BAND',
+    location: 'Global Orbit · 747 km Alt',
+    metric: '240 km',
+    metricDesc: 'Swath Width / 12-Day',
+    cx: 200,
+    cy: 80,
+    description:
+      'Penetrating persistent clouds, volcanic ash, and polar night with dual-frequency microwave pulses to map millimeter-scale displacements.',
+    icon: Radar,
   },
 ];
 
@@ -279,11 +295,35 @@ function PhenomenonRadarGraphic({ id, isActive }) {
             })}
           </g>
         )}
+
+        {id === 'radar' && (
+          <g>
+            <motion.path
+              d="M 10 55 Q 65 15, 130 55 T 250 55"
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              animate={{
+                d: [
+                  'M 10 55 Q 65 15, 130 55 T 250 55',
+                  'M 10 55 Q 65 95, 130 55 T 250 55',
+                  'M 10 55 Q 65 15, 130 55 T 250 55',
+                ],
+              }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <motion.path
+              d="M 10 55 Q 35 30, 70 55 T 130 55 T 190 55 T 250 55"
+              stroke="rgba(251,113,133,0.85)"
+              strokeWidth="1.4"
+            />
+            <line x1="130" y1="15" x2="130" y2="95" stroke="rgba(255,255,255,0.25)" strokeDasharray="3 3" />
+          </g>
+        )}
       </svg>
 
       {/* Top-Right Band Tag */}
       <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10 font-mono text-[9px] tracking-[0.18em] text-white/75">
-        {id === 'farming' ? 'S-BAND' : id === 'wildfire' ? 'L+S BAND' : 'L-BAND'}
+        {id === 'farming' ? 'S-BAND' : id === 'wildfire' || id === 'radar' ? 'L+S BAND' : 'L-BAND'}
       </span>
     </div>
   );
@@ -297,31 +337,29 @@ export function SurfaceWaltzSection({
   return (
     <section
       id="waltz"
-      className="relative py-24 sm:py-32 px-4 sm:px-8 max-w-7xl mx-auto"
+      className="relative py-14 sm:py-20 px-4 sm:px-8 max-w-7xl mx-auto"
     >
-      {/* Section Editorial Header (Inspired by Pinterest Inspiration 2: "Articles. / Planets, genes, space and robots.") */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-12 border-b border-white/[0.08]">
+      {/* Section Editorial Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pb-10 border-b border-white/[0.08]">
         <div>
-          <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.28em] uppercase text-white/45 mb-4">
-            <span>01 // THE ENDLESS WALTZ</span>
+          <div className="flex items-center gap-3 font-mono text-xs tracking-wider uppercase text-white/65 mb-3">
+            <span>02 // EARTH OBSERVATIONS</span>
             <span className="w-8 h-px bg-white/20" />
             <span>SURFACE CHANGE CHOREOGRAPHY</span>
           </div>
           <h2 className="font-display text-3xl sm:text-5xl font-light tracking-tight text-white">
-            Five Motions of a{' '}
-            <span className="font-semibold">Living Planet.</span>
+            Six Perspectives on a{' '}
+            <span className="font-semibold">Dynamic Planet.</span>
           </h2>
         </div>
 
-        <p className="max-w-md text-sm text-white/55 font-light leading-relaxed">
-          Earth’s surface is in a constant waltz of natural processes and human
-          activities. Select any phenomenon below to tune the orbital horizon to
-          its radar signature.
+        <p className="max-w-lg text-[13.5px] sm:text-[14px] text-white/75 font-light leading-relaxed">
+          Five global surface processes and human activities paired with NISAR’s all-weather dual-frequency radar capability. Select any card below to focus the orbital horizon on its signature.
         </p>
       </div>
 
-      {/* Frosted Glass Bento Grid */}
-      <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Frosted Glass Bento Grid (All 6 Unified) */}
+      <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {WALTZ_PHENOMENA.map((item, idx) => {
           const Icon = item.icon;
           const isSelected = activePhenomenon.id === item.id;
@@ -335,22 +373,27 @@ export function SurfaceWaltzSection({
               transition={{ duration: 0.6, delay: idx * 0.08 }}
             >
               <FrostedCard
-                onClick={() => onSelectPhenomenon(item)}
+                onClick={() => {
+                  onSelectPhenomenon(item);
+                  if (item.id === 'radar' && onScrollToNisar) {
+                    onScrollToNisar();
+                  }
+                }}
                 className={`p-6 sm:p-7 cursor-pointer flex flex-col justify-between h-full transition-all ${
                   isSelected
-                    ? 'ring-1 ring-white/40 bg-white/[0.07]'
-                    : 'hover:bg-white/[0.04]'
+                    ? 'ring-1 ring-[#FB7185]/60 bg-white/[0.08] shadow-[0_12px_36px_rgba(225,29,72,0.18)]'
+                    : 'hover:bg-white/[0.05]'
                 }`}
               >
                 <div>
-                  {/* Card Top Meta Row (Inspired by Pinterest Reference 1) */}
+                  {/* Card Top Meta Row */}
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2.5">
-                      <span className="font-mono text-xs text-white/40">
+                      <span className="font-mono text-xs font-semibold text-white/60">
                         {item.index}
                       </span>
-                      <span className="w-4 h-px bg-white/20" />
-                      <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-white/65">
+                      <span className="w-4 h-px bg-white/30" />
+                      <span className="font-mono text-xs tracking-wider uppercase text-white/80 font-medium">
                         {item.code}
                       </span>
                     </div>
@@ -366,121 +409,37 @@ export function SurfaceWaltzSection({
                   {/* Title & Subtitle */}
                   <div className="mt-6 flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-display text-xl font-medium text-white tracking-tight group-hover:text-white transition-colors">
+                      <h3 className="font-display text-xl font-semibold text-white tracking-tight group-hover:text-white transition-colors">
                         {item.title}
                       </h3>
-                      <p className="text-xs font-mono text-white/45 mt-1">
+                      <p className="text-xs font-mono text-white/70 mt-1 font-medium">
                         {item.location}
                       </p>
                     </div>
-                    <div className="w-9 h-9 rounded-full frosted-glass-pill flex items-center justify-center text-white/75 group-hover:text-white group-hover:scale-105 transition-all">
+                    <div className="w-10 h-10 rounded-full frosted-glass-pill flex items-center justify-center text-white/85 group-hover:text-white group-hover:scale-105 transition-all">
                       <Icon className="w-4 h-4" />
                     </div>
                   </div>
 
-                  {/* Editorial Description */}
-                  <p className="mt-4 text-sm text-white/55 font-light leading-relaxed">
+                  {/* Editorial Description (WCAG 2.1 AA 14px compliant) */}
+                  <p className="mt-4 text-[13.5px] sm:text-[14px] text-white/80 font-normal leading-relaxed">
                     {item.description}
                   </p>
                 </div>
 
-                {/* Card Bottom Telemetry & Micro-Interaction Footer */}
-                <div className="mt-7 pt-4 border-t border-white/[0.08] flex items-center justify-between">
-                  <div>
-                    <span className="block font-mono text-[9px] tracking-[0.2em] uppercase text-white/40">
-                      {item.metricDesc}
-                    </span>
-                    <span className="font-mono text-sm font-medium text-white">
-                      {item.metric}
-                    </span>
-                  </div>
-
-                  <span className="inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.2em] uppercase text-white/70 group-hover:text-white transition-colors">
-                    <span>{isSelected ? 'LOCKED ON HORIZON' : 'FOCUS SIGNAL'}</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                {/* Card Bottom Telemetry Footer */}
+                <div className="mt-7 pt-4 border-t border-white/[0.08]">
+                  <span className="block font-mono text-[10px] tracking-wider uppercase text-white/60 font-medium">
+                    {item.metricDesc}
+                  </span>
+                  <span className="font-mono text-base font-semibold text-white">
+                    {item.metric}
                   </span>
                 </div>
               </FrostedCard>
             </motion.div>
           );
         })}
-
-        {/* 6th Architectural Card: The NASA-ISRO NISAR Synthesis Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: 0.6, delay: 0.42 }}
-        >
-          <FrostedCard className="p-6 sm:p-7 flex flex-col justify-between h-full bg-gradient-to-br from-white/[0.07] via-white/[0.02] to-[#8B5CF6]/[0.08]">
-            <div>
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                  <span className="font-mono text-xs text-white/40">06</span>
-                  <span className="w-4 h-px bg-white/20" />
-                  <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-white/75">
-                    NASA — ISRO // NISAR
-                  </span>
-                </div>
-                <DiamondCrosshair />
-              </div>
-
-              <div className="relative w-full h-36 rounded-xl bg-black/45 border border-white/[0.08] p-4 flex flex-col justify-between overflow-hidden">
-                <div className="flex items-center justify-between text-[10px] font-mono text-white/60">
-                  <span>SWEEP SAR // 240 KM SWATH</span>
-                  <span className="text-white/90">12-DAY ORBIT</span>
-                </div>
-
-                {/* Minimalist Dual-Wave SVG */}
-                <svg viewBox="0 0 240 48" className="w-full h-12" fill="none">
-                  <motion.path
-                    d="M 0 24 Q 30 4, 60 24 T 120 24 T 180 24 T 240 24"
-                    stroke="#FFFFFF"
-                    strokeWidth="1.5"
-                    animate={{
-                      d: [
-                        'M 0 24 Q 30 4, 60 24 T 120 24 T 180 24 T 240 24',
-                        'M 0 24 Q 30 44, 60 24 T 120 24 T 180 24 T 240 24',
-                        'M 0 24 Q 30 4, 60 24 T 120 24 T 180 24 T 240 24',
-                      ],
-                    }}
-                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                  <motion.path
-                    d="M 0 24 Q 15 10, 30 24 T 60 24 T 90 24 T 120 24 T 150 24 T 180 24 T 210 24 T 240 24"
-                    stroke="rgba(244,63,94,0.75)"
-                    strokeWidth="1"
-                  />
-                </svg>
-
-                <div className="flex items-center justify-between text-[9px] font-mono tracking-[0.18em] text-white/45">
-                  <span>L-BAND (24 CM · NASA)</span>
-                  <span>S-BAND (10 CM · ISRO)</span>
-                </div>
-              </div>
-
-              <h3 className="mt-6 font-display text-xl font-medium text-white tracking-tight">
-                All-Weather Radar Vision
-              </h3>
-              <p className="mt-3 text-sm text-white/55 font-light leading-relaxed">
-                Unlike optical sensors blinded by clouds, smoke, or polar night,
-                NISAR’s dual-frequency synthetic aperture radar illuminates every
-                millimeter of surface motion across the globe.
-              </p>
-            </div>
-
-            <div className="mt-7 pt-4 border-t border-white/[0.08] flex items-center justify-between">
-              <GlassButton
-                onClick={onScrollToNisar}
-                variant="secondary"
-                compartment
-                className="w-full justify-center"
-              >
-                Explore Mission
-              </GlassButton>
-            </div>
-          </FrostedCard>
-        </motion.div>
       </div>
     </section>
   );

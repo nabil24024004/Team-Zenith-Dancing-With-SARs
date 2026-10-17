@@ -1,15 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
-  Bookmark,
-  Database,
+  Compass,
   Globe,
   Loader2,
   Radar,
   RefreshCw,
-  ShieldCheck,
+  Search,
   Sparkles,
-  Trash2,
 } from 'lucide-react';
 import rawCatalog from '../../../resources/asf-results-2026-10-08_23-06-00.json';
 import {
@@ -21,6 +19,7 @@ import { filterCatalog, normalizeCatalog, getPartnerGranules } from './catalog.j
 import CatalogFilters from './CatalogFilters.jsx';
 import CatalogTimeline from './CatalogTimeline.jsx';
 import GlobeViewer from './GlobeViewer.jsx';
+import ComparePairBar from './ComparePairBar.jsx';
 import RecordDetails from './RecordDetails.jsx';
 import { SME2_L3_DATASET } from './sme2Data.js';
 import { computeSarChangeProduct } from './sarChangeEngine.js';
@@ -51,34 +50,39 @@ const SME2_SYNTHESIZED_RECORD = {
 
 const LIVE_REGION_PRESETS = [
   {
-    id: 'local',
-    label: 'Local Snapshot + L3 SME2',
-    coords: null,
-    subtitle: 'Meghna-Brahmaputra + Svalbard HDF5 (154 granules)',
-  },
-  {
     id: 'bengal',
-    label: 'Live ASF · Bengal Delta',
+    label: 'Bengal Delta',
+    tag: '23.81°N · 90.41°E',
+    subtitle: 'Monsoon Inundation',
     coords: 'POINT(90.41 23.81)',
-    subtitle: '23.81°N, 90.41°E · Live NASA Earthdata CMR',
   },
   {
     id: 'himalaya',
-    label: 'Live ASF · Eastern Himalayas',
+    label: 'Eastern Himalayas',
+    tag: '27.65°N · 91.75°E',
+    subtitle: 'Glacial Elevation',
     coords: 'POINT(91.75 27.65)',
-    subtitle: '27.65°N, 91.75°E · Alpine Relief & Glacial Basins',
   },
   {
     id: 'sundarbans',
-    label: 'Live ASF · Sundarbans Coast',
+    label: 'Sundarbans Coast',
+    tag: '21.95°N · 89.18°E',
+    subtitle: 'Tidal Mangroves',
     coords: 'POINT(89.18 21.95)',
-    subtitle: '21.95°N, 89.18°E · Tidal Mangrove Inundation',
   },
   {
     id: 'svalbard',
-    label: 'Live ASF · Svalbard Arctic',
+    label: 'Svalbard Arctic',
+    tag: '77.52°N · 13.94°E',
+    subtitle: 'Permafrost & Cryosphere',
     coords: 'POINT(13.94 77.52)',
-    subtitle: '77.52°N, 13.94°E · Arctic Permafrost & L3 SME2',
+  },
+  {
+    id: 'local',
+    label: 'Meghna Baseline',
+    tag: 'Calibrated Archive',
+    subtitle: '154 Local Swaths',
+    coords: null,
   },
 ];
 
@@ -88,25 +92,9 @@ function coverageLabel(features) {
     .filter(Boolean)
     .sort();
   if (!dates.length) return null;
-  const first = new Date(`${dates[0]}T00:00:00Z`);
-  const last = new Date(`${dates.at(-1)}T00:00:00Z`);
-  const fullText = (d) =>
-    new Intl.DateTimeFormat('en', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'UTC',
-    }).format(d);
-  if (dates[0] === dates.at(-1)) return fullText(first);
-  if (first.getUTCFullYear() === last.getUTCFullYear()) {
-    const shortFirst = new Intl.DateTimeFormat('en', {
-      month: 'short',
-      day: 'numeric',
-      timeZone: 'UTC',
-    }).format(first);
-    return `${shortFirst} – ${fullText(last)}`;
-  }
-  return `${fullText(first)} – ${fullText(last)}`;
+  const first = dates[0];
+  const last = dates.at(-1);
+  return first === last ? first : `${first} – ${last}`;
 }
 
 export default function ExplorerPage() {
@@ -117,7 +105,7 @@ export default function ExplorerPage() {
   const [customLat, setCustomLat] = useState('23.81');
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveStatusMsg, setLiveStatusMsg] = useState(
-    'Earthdata Bearer Token authenticated (UID: abrar43) · Ready for live ASF CMR search & cloud asset streaming.'
+    'Earthdata Bearer Token authenticated · Ready for live ASF CMR search & cloud asset streaming.'
   );
   const [drapeRadarOnGlobe, setDrapeRadarOnGlobe] = useState(true);
   const [sme2FocusTrigger, setSme2FocusTrigger] = useState(0);
@@ -336,16 +324,6 @@ export default function ExplorerPage() {
     comparePair?.granuleA?.id ?? comparePair?.granuleA?.properties?.id,
     comparePair?.granuleB?.id ?? comparePair?.granuleB?.properties?.id,
   ]);
-  const dateCoverage = coverageLabel(features);
-  const generatedAt = rawCatalog?.[0]?.[0]?.processingDate;
-  const snapshotDate = generatedAt
-    ? new Intl.DateTimeFormat('en', {
-        month: 'short',
-        day: '2-digit',
-        year: 'numeric',
-        timeZone: 'UTC',
-      }).format(new Date(generatedAt))
-    : 'Oct 08, 2026';
 
   const runLiveAsfQuery = async (wktPoint, presetId, label) => {
     if (!wktPoint) {
@@ -409,6 +387,7 @@ export default function ExplorerPage() {
   };
 
   const handleFocusSme2 = () => {
+    setActivePreset('sme2');
     setFilters((prev) =>
       prev.productType && prev.productType !== 'SME2'
         ? INITIAL_FILTERS
@@ -460,7 +439,7 @@ export default function ExplorerPage() {
           longitude: Number(lon.toFixed(4)),
           pinned_granule_id: granuleId,
           product_type: p.processingLevel ?? p.productType ?? 'SAR',
-          status: 'PINNED IN SUPABASE',
+          status: 'SAVED TO DATABASE',
           notes: `Pinned observation ${granuleId} (${p.flightDirection ?? 'Orbit'}, ${p.polarization ?? 'Dual-Pol'}).`,
         }),
       });
@@ -470,7 +449,7 @@ export default function ExplorerPage() {
           setWatchpoints(data.watchpoints);
         }
         setLiveStatusMsg(
-          `Saved observation ${granuleId.slice(0, 32)}… to Supabase Cloud (cxfwogzgtwslzviecrtx).`
+          `Saved observation ${granuleId.slice(0, 32)}… to the database.`
         );
       }
     } finally {
@@ -515,15 +494,27 @@ export default function ExplorerPage() {
     [activeId, watchpoints]
   );
 
+  const isSme2Active = useMemo(
+    () => activePreset === 'sme2',
+    [activePreset]
+  );
+
+  const activeRegionLabel = useMemo(() => {
+    if (activePreset === 'sme2') return 'Svalbard L3 Soil Moisture';
+    if (activePreset === 'custom') return `Custom (${customLat}°N, ${customLon}°E)`;
+    const preset = LIVE_REGION_PRESETS.find((p) => p.id === activePreset);
+    return preset?.label ?? 'Meghna Baseline';
+  }, [activePreset, customLat, customLon]);
+
   return (
     <main className="x-explorer min-h-screen bg-[#040406] text-[#F4F4F6] relative overflow-x-hidden selection:bg-white/20 selection:text-white">
-      {/* Subtle Ambient Background Texture & Atmospheric Glows (Matching Landing Page — Strictly Zero Cyan, Zero Gold) */}
+      {/* Ambient Background & Grid Matrix */}
       <div className="fixed inset-0 bg-dot-matrix opacity-40 pointer-events-none z-0" />
       <div
         className="fixed top-[-18%] left-1/2 -translate-x-1/2 w-[900px] h-[520px] rounded-full blur-[150px] pointer-events-none z-0"
         style={{
           background:
-            'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(139,92,246,0.045) 55%, transparent 80%)',
+            'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(225,29,72,0.035) 55%, transparent 80%)',
         }}
       />
 
@@ -535,28 +526,28 @@ export default function ExplorerPage() {
           --x-border: rgba(255, 255, 255, 0.09);
           --x-border-hover: rgba(255, 255, 255, 0.22);
           --x-text: #F4F4F6;
-          --x-muted: rgba(244, 244, 246, 0.74);
-          --x-dim: rgba(244, 244, 246, 0.58);
+          --x-muted: rgba(244, 244, 246, 0.72);
+          --x-dim: rgba(244, 244, 246, 0.52);
           --x-accent: #F4F4F6;
           --x-crimson: #E11D48;
           --x-rose: #FB7185;
-          --x-violet: #A78BFA;
+          --x-crimson-dim: rgba(225, 29, 72, 0.2);
           font-family: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, sans-serif;
           padding: 0 24px 48px;
         }
         .x-explorer * { box-sizing: border-box; }
         .x-shell { position: relative; z-index: 10; max-width: 1440px; margin: 0 auto; }
 
-        /* Frosted Glass Floating Navbar (Matches App.jsx) */
-        .x-topbar-wrap { padding-top: 16px; margin-bottom: 8px; }
+        /* Frosted Glass Top Navigation Bar */
+        .x-topbar-wrap { padding-top: 16px; margin-bottom: 6px; }
         .x-topbar {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 16px;
-          padding: 12px 22px;
+          padding: 12px 20px;
           border-radius: 16px;
-          background: rgba(4, 4, 6, 0.72);
+          background: rgba(4, 4, 6, 0.75);
           backdrop-filter: blur(28px) saturate(140%);
           -webkit-backdrop-filter: blur(28px) saturate(140%);
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -583,7 +574,7 @@ export default function ExplorerPage() {
           color: #FFFFFF;
         }
         .x-brand-sub {
-          margin-top: 3px;
+          margin-top: 2px;
           font-family: "JetBrains Mono", monospace;
           font-size: 9px;
           letter-spacing: 0.18em;
@@ -596,40 +587,34 @@ export default function ExplorerPage() {
           gap: 8px;
           text-decoration: none;
           border-radius: 9999px;
-          padding: 9px 18px;
+          padding: 8px 16px;
           font-family: "JetBrains Mono", monospace;
           font-size: 10px;
-          letter-spacing: 0.2em;
+          letter-spacing: 0.18em;
           text-transform: uppercase;
           color: rgba(255, 255, 255, 0.88);
           background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
-          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.65), inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+          transition: all 0.25s ease;
           cursor: pointer;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .x-back:hover {
           background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
           border-color: rgba(255, 255, 255, 0.32);
           color: #FFFFFF;
-          transform: translateY(-1px);
-        }
-        .x-back:focus-visible,
-        .x-explorer button:focus-visible,
-        .x-explorer select:focus-visible,
-        .x-explorer input:focus-visible,
-        .x-explorer a:focus-visible {
-          outline: 2px solid rgba(255, 255, 255, 0.85);
-          outline-offset: 3px;
         }
 
-        /* Editorial Hero Title Row */
-        .x-title-row {
+        /* Scientific Workspace Header */
+        .x-console-header {
           display: flex;
+          flex-wrap: wrap;
           justify-content: space-between;
           align-items: flex-end;
-          gap: 24px;
-          padding: 24px 4px 18px;
+          gap: 16px;
+          padding: 18px 4px 14px;
         }
         .x-eyebrow {
           display: inline-flex;
@@ -639,261 +624,443 @@ export default function ExplorerPage() {
           font-size: 10px;
           letter-spacing: 0.22em;
           text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.68);
+          color: rgba(255, 255, 255, 0.7);
         }
-        .x-sub-eyebrow {
-          display: block;
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.65);
-        }
-        .x-title-row h1 {
+        .x-console-title-group h1 {
           font-family: "Space Grotesk", sans-serif;
-          font-size: clamp(26px, 3.2vw, 40px);
-          letter-spacing: -0.03em;
-          line-height: 1.12;
-          margin: 10px 0 0;
-          font-weight: 300;
+          font-size: clamp(22px, 2.4vw, 30px);
+          letter-spacing: -0.02em;
+          line-height: 1.2;
+          margin: 6px 0 4px;
+          font-weight: 500;
           color: #FFFFFF;
         }
-        .x-title-row h1 strong {
-          font-weight: 600;
-        }
-        .x-title-bars {
-          margin-top: 10px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .x-title-row p {
-          margin: 10px 0 0;
+        .x-console-title-group h1 strong { font-weight: 700; }
+        .x-console-title-group p {
+          margin: 0;
           color: var(--x-muted);
           font-size: 13px;
           font-weight: 300;
-          line-height: 1.6;
-          max-width: 620px;
+          line-height: 1.5;
+          max-width: 680px;
         }
         .x-live-tag {
           display: inline-flex;
           align-items: center;
-          gap: 9px;
+          gap: 8px;
           white-space: nowrap;
-          padding: 8px 14px;
+          padding: 7px 13px;
           border-radius: 999px;
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%);
-          backdrop-filter: blur(20px);
+          background: rgba(255, 255, 255, 0.04);
           border: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
           font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.18em;
+          font-size: 9.5px;
+          letter-spacing: 0.16em;
           text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.86);
+          color: rgba(255, 255, 255, 0.88);
         }
         .x-live-dot {
           width: 6px;
           height: 6px;
           border-radius: 50%;
           background: #E11D48;
-          box-shadow: 0 0 12px rgba(225, 29, 72, 0.85);
+          box-shadow: 0 0 10px rgba(225, 29, 72, 0.85);
         }
 
-        /* Live NASA Earthdata CMR Command Bar */
+        /* Command Station: Live NASA Earthdata Study Region Selector */
         .x-earthdata-bar {
-          margin-bottom: 12px;
-          padding: 12px 16px;
-          border-radius: 16px;
-          background: linear-gradient(145deg, rgba(255, 255, 255, 0.055) 0%, rgba(139, 92, 246, 0.04) 55%, rgba(225, 29, 72, 0.04) 100%);
-          backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 18px 40px -15px rgba(0, 0, 0, 0.75), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+          margin-bottom: 16px;
+          padding: 16px 20px;
+          border-radius: 18px;
+          background: linear-gradient(
+            145deg,
+            rgba(20, 20, 30, 0.78) 0%,
+            rgba(10, 10, 16, 0.88) 60%,
+            rgba(32, 14, 24, 0.78) 100%
+          );
+          backdrop-filter: blur(28px) saturate(140%);
+          -webkit-backdrop-filter: blur(28px) saturate(140%);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow:
+            0 20px 48px -12px rgba(0, 0, 0, 0.8),
+            inset 0 1px 0 0 rgba(255, 255, 255, 0.16);
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        .x-cmd-header {
           display: flex;
           flex-wrap: wrap;
-          align-items: center;
+          align-items: flex-start;
           justify-content: space-between;
-          gap: 10px;
+          gap: 12px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .x-earthdata-presets {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 7px;
+        .x-cmd-title-wrap {
+          flex: 1 1 320px;
+          min-width: 0;
         }
-        .x-preset-btn {
+        .x-cmd-eyebrow {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          padding: 7px 12px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(4, 4, 6, 0.6);
-          color: rgba(255, 255, 255, 0.82);
           font-family: "JetBrains Mono", monospace;
           font-size: 9.5px;
-          letter-spacing: 0.12em;
+          letter-spacing: 0.18em;
           text-transform: uppercase;
-          cursor: pointer;
-          transition: all 0.2s ease;
+          color: var(--x-rose);
+          font-weight: 600;
+          margin-bottom: 4px;
         }
-        .x-preset-btn:hover:not(:disabled) {
-          border-color: rgba(255, 255, 255, 0.28);
-          color: #FFFFFF;
-          background: rgba(255, 255, 255, 0.08);
-        }
-        .x-preset-btn.is-active {
-          border-color: rgba(251, 113, 133, 0.48);
-          background: linear-gradient(135deg, rgba(225, 29, 72, 0.22) 0%, rgba(139, 92, 246, 0.14) 100%);
-          color: #FFFFFF;
-        }
-        .x-preset-btn.is-sme2 {
-          border-color: rgba(167, 139, 250, 0.42);
-          background: rgba(139, 92, 246, 0.14);
-          color: #DDD6FE;
-        }
-        .x-preset-btn.is-sme2:hover {
-          background: rgba(139, 92, 246, 0.24);
-          color: #FFFFFF;
-        }
-        .x-custom-coord-form {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .x-coord-input {
-          width: 82px;
-          height: 32px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(4, 4, 6, 0.72);
-          color: #FFFFFF;
-          padding: 0 10px;
-          font-family: "JetBrains Mono", monospace;
-          font-size: 10px;
-        }
-        .x-earthdata-status {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          padding-top: 8px;
-          border-top: 1px solid rgba(255, 255, 255, 0.07);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9.5px;
-          letter-spacing: 0.06em;
-          color: rgba(244, 244, 246, 0.78);
-        }
-
-        /* Compact, High-Contrast Frosted Telemetry Metric Strip */
-        .x-metrics {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 10px;
-          margin: 0 0 14px;
-        }
-        .x-metrics > div {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          min-width: 0;
-          min-height: 44px;
-          padding: 9px 15px;
-          border-radius: 12px;
-          background: linear-gradient(145deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.025) 55%, rgba(255, 255, 255, 0.04) 100%);
-          backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.13);
-          box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.75), inset 0 1px 0 0 rgba(255, 255, 255, 0.16);
-        }
-        .x-metrics span {
-          font-family: "JetBrains Mono", monospace;
-          font-size: 10px;
-          font-weight: 500;
-          letter-spacing: 0.13em;
-          text-transform: uppercase;
-          color: rgba(244, 244, 246, 0.84);
-          white-space: nowrap;
-        }
-        .x-metrics strong {
+        .x-cmd-title {
           font-family: "Space Grotesk", sans-serif;
           font-size: 15px;
           font-weight: 600;
           color: #FFFFFF;
-          text-align: right;
-          white-space: nowrap;
+          margin: 0 0 4px 0;
+          letter-spacing: -0.01em;
+        }
+        .x-cmd-desc {
+          margin: 0;
+          font-size: 12px;
+          line-height: 1.45;
+          color: rgba(244, 244, 246, 0.72);
+          max-width: 780px;
+        }
+        .x-cmd-restore-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          color: rgba(244, 244, 246, 0.9);
+          font-family: "JetBrains Mono", monospace;
+          font-size: 10px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+        .x-cmd-restore-btn:hover {
+          background: rgba(255, 255, 255, 0.12);
+          border-color: rgba(255, 255, 255, 0.28);
+          color: #FFFFFF;
         }
 
-        /* 2-Row × 3-Column Widescreen Bento Command Center */
-        .x-workspace {
-          display: grid;
-          gap: 18px;
+        .x-cmd-grid {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: stretch;
+          gap: 12px;
         }
+        .x-cmd-presets {
+          flex: 1 1 540px;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+          gap: 8px;
+        }
+        .x-region-card {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: space-between;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.035);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #F4F4F6;
+          cursor: pointer;
+          transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+          text-align: left;
+          min-height: 70px;
+        }
+        .x-region-card:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.075);
+          border-color: rgba(255, 255, 255, 0.24);
+          transform: translateY(-1px);
+        }
+        .x-region-card.is-active {
+          background: linear-gradient(135deg, rgba(225, 29, 72, 0.24) 0%, rgba(190, 18, 60, 0.16) 100%);
+          border-color: rgba(251, 113, 133, 0.75);
+          box-shadow: 0 0 20px rgba(225, 29, 72, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .x-region-card.is-sme2 {
+          background: rgba(255, 255, 255, 0.035);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+        .x-region-card.is-sme2:hover {
+          background: rgba(255, 255, 255, 0.075);
+          border-color: rgba(255, 255, 255, 0.24);
+        }
+        .x-region-card.is-sme2.is-active {
+          border-color: rgba(251, 113, 133, 0.75);
+          background: linear-gradient(135deg, rgba(225, 29, 72, 0.24) 0%, rgba(190, 18, 60, 0.16) 100%);
+          box-shadow: 0 0 20px rgba(225, 29, 72, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .x-region-top {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          width: 100%;
+          min-width: 0;
+        }
+        .x-region-indicator {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
+          border-radius: 5px;
+          background: rgba(255, 255, 255, 0.05);
+          flex-shrink: 0;
+        }
+        .x-region-name {
+          font-family: "Space Grotesk", sans-serif;
+          font-size: 12.5px;
+          font-weight: 600;
+          color: #FFFFFF;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          letter-spacing: -0.01em;
+          flex: 1;
+          min-width: 0;
+        }
+        .x-region-meta {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          width: 100%;
+          min-width: 0;
+          margin-top: 5px;
+        }
+        .x-region-tag {
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9.5px;
+          color: rgba(255, 255, 255, 0.72);
+          letter-spacing: 0.03em;
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .x-region-sub {
+          font-size: 10px;
+          line-height: 1.3;
+          color: rgba(244, 244, 246, 0.72);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* Custom Coordinates Search Box */
+        .x-coord-tool {
+          flex: 0 1 310px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: rgba(4, 4, 6, 0.65);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          gap: 8px;
+          min-height: 70px;
+        }
+        .x-coord-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9.5px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: rgba(244, 244, 246, 0.75);
+          font-weight: 500;
+        }
+        .x-coord-inputs {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .x-coord-field {
+          position: relative;
+          flex: 1 1 80px;
+          min-width: 0;
+        }
+        .x-coord-input {
+          width: 100%;
+          height: 32px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(255, 255, 255, 0.04);
+          color: #FFFFFF;
+          padding: 0 24px 0 8px;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 11px;
+          outline: none;
+          transition: border-color 0.2s ease;
+          color-scheme: dark;
+        }
+        .x-coord-input:focus {
+          border-color: rgba(251, 113, 133, 0.7);
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .x-coord-unit {
+          position: absolute;
+          right: 7px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-family: "JetBrains Mono", monospace;
+          font-size: 10px;
+          font-weight: 700;
+          color: #FB7185;
+          pointer-events: none;
+        }
+        .x-coord-submit {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 5px;
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 8px;
+          background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%);
+          border: 1px solid rgba(251, 113, 133, 0.45);
+          color: #FFFFFF;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 10px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+        .x-coord-submit:hover:not(:disabled) {
+          filter: brightness(1.15);
+          box-shadow: 0 0 12px rgba(225, 29, 72, 0.4);
+        }
+        .x-coord-submit:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* 2-Column Primary Geospatial Workspace (70% Globe / 30% Timeline) */
         .x-primary-stage {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
           gap: 16px;
           align-items: stretch;
+          margin-bottom: 14px;
         }
         .x-globe-column {
-          grid-column: span 2;
-          display: grid;
-          grid-template-rows: 580px auto;
+          display: flex;
+          flex-direction: column;
           gap: 10px;
           min-width: 0;
         }
-        .x-navigator-column {
-          grid-column: span 1;
+        .x-globe-viewport {
+          position: relative;
+          height: 650px;
+          min-height: 650px;
+          max-height: 650px;
+          width: 100%;
+          border-radius: 20px;
+          overflow: hidden;
+        }
+        .x-globe-viewport .x-globe-card {
+          height: 100% !important;
+          min-height: 650px !important;
+        }
+        .x-timeline-column {
           display: flex;
           flex-direction: column;
-          gap: 14px;
           min-width: 0;
-          height: 626px;
+        }
+        .x-timeline-column .x-timeline {
+          height: 650px;
+          min-height: 650px;
+          max-height: 650px;
+          display: flex;
+          flex-direction: column;
+        }
+        .x-timeline-column .x-observation-list {
+          flex: 1;
+          overflow-y: auto;
         }
         .x-globe-legend {
+          position: absolute;
+          bottom: 12px;
+          left: 12px;
+          right: 12px;
+          z-index: 20;
           display: flex;
           flex-wrap: wrap;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
-          padding: 10px 16px;
+          gap: 10px 14px;
+          padding: 9px 16px;
           border-radius: 12px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: rgba(244, 244, 246, 0.82);
+          background: rgba(4, 4, 6, 0.42);
+          backdrop-filter: blur(18px) saturate(140%);
+          -webkit-backdrop-filter: blur(18px) saturate(140%);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          color: #F4F4F6;
           font-family: "JetBrains Mono", monospace;
-          font-size: 9.5px;
-          letter-spacing: 0.13em;
+          font-size: 10.5px;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
+          pointer-events: auto;
         }
-        .x-globe-legend span { display: inline-flex; align-items: center; gap: 7px; }
+        .x-globe-legend span {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          color: #FFFFFF;
+          font-weight: 500;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+        }
         .x-globe-legend i {
-          width: 12px;
-          height: 8px;
+          width: 14px;
+          height: 9px;
           border-radius: 2px;
-          border: 1px solid #C4B5FD;
-          background: rgba(167, 139, 250, 0.28);
+          border: 1px solid #FDA4AF;
+          background: rgba(251, 113, 133, 0.6);
           display: inline-block;
+          box-shadow: 0 0 8px rgba(251, 113, 133, 0.45);
         }
         .x-globe-legend .x-swatch-desc {
           border: 1px solid #FDA4AF;
-          background: rgba(251, 113, 133, 0.24);
+          background: rgba(251, 113, 133, 0.6);
+          box-shadow: 0 0 8px rgba(251, 113, 133, 0.45);
         }
         .x-globe-legend .x-swatch-selected {
           border: 1.5px solid #FFFFFF;
-          background: rgba(225, 29, 72, 0.45);
+          background: #E11D48;
+          box-shadow: 0 0 12px rgba(225, 29, 72, 0.8);
+        }
+        .x-globe-legend-hint {
+          color: rgba(255, 255, 255, 0.82);
+          font-size: 10px;
+          letter-spacing: 0.04em;
+          text-transform: none;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
         }
 
-        /* Signature Zenith Frosted Glass Panels */
+        /* Generic Panel Styling */
         .explorer-panel {
           position: relative;
           min-width: 0;
           border-radius: 20px;
           background: linear-gradient(
             145deg,
-            rgba(255, 255, 255, 0.06) 0%,
+            rgba(255, 255, 255, 0.055) 0%,
             rgba(255, 255, 255, 0.018) 55%,
             rgba(255, 255, 255, 0.035) 100%
           );
@@ -905,26 +1072,13 @@ export default function ExplorerPage() {
             inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
             inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
           padding: 18px 20px;
-          transition: border-color 0.3s ease;
-        }
-        .explorer-panel:hover {
-          border-color: rgba(255, 255, 255, 0.16);
-        }
-        .explorer-panel::before {
-          content: "";
-          pointer-events: none;
-          position: absolute;
-          left: 32px;
-          right: 32px;
-          top: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
         }
         .x-panel-heading {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           gap: 10px;
+          margin-bottom: 10px;
         }
         .x-panel-heading h2 {
           font-family: "Space Grotesk", sans-serif;
@@ -932,300 +1086,81 @@ export default function ExplorerPage() {
           letter-spacing: -0.02em;
           font-weight: 500;
           color: #FFFFFF;
-          margin: 5px 0 0;
+          margin: 4px 0 0;
         }
-
-        /* Compact Filter Controls in Right Navigator Column */
-        .x-filter-panel { flex-shrink: 0; padding: 16px 18px; }
-        .x-filter-fields { display: grid; gap: 10px; margin: 12px 0 12px; }
-        .x-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-        .x-field > span {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          color: rgba(255, 255, 255, 0.78);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-        }
-        .x-field select,
-        .x-field input {
-          width: 100%;
-          min-width: 0;
-          height: 36px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 10px;
-          background: rgba(4, 4, 6, 0.65);
-          color: #F4F4F6;
-          padding: 0 10px;
-          font-family: "JetBrains Mono", monospace;
-          font-size: 10.5px;
-          color-scheme: dark;
-          transition: border-color 0.2s ease, background 0.2s ease;
-        }
-        .x-field select:hover,
-        .x-field input:hover {
-          border-color: rgba(255, 255, 255, 0.25);
-          background: rgba(8, 8, 12, 0.85);
-        }
-        .x-field select { appearance: auto; }
-        .x-date-field { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .x-reset {
-          display: inline-flex;
-          gap: 6px;
-          align-items: center;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.04);
-          color: rgba(255, 255, 255, 0.72);
-          padding: 5px 10px;
-          border-radius: 999px;
-          font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .x-reset:hover:not(:disabled) {
-          color: #FFFFFF;
-          border-color: rgba(255, 255, 255, 0.28);
-          background: rgba(255, 255, 255, 0.1);
-        }
-        .x-reset:disabled { opacity: 0.35; cursor: not-allowed; }
-        .x-filter-summary {
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-          padding-top: 10px;
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: space-between;
-          gap: 6px 12px;
-        }
-        .x-filter-summary p {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          margin: 0;
-          color: var(--x-muted);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9.5px;
-          letter-spacing: 0.06em;
-        }
-        .x-filter-summary strong { color: #FFFFFF; font-weight: 600; }
-        .x-filter-summary p:first-child strong { color: #FB7185; }
-
-        /* Timeline Panel (Fills Remaining Height of Right Column Flush with Globe) */
-        .x-timeline {
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          min-height: 0;
+        .x-product-badge {
+          max-width: 170px;
           overflow: hidden;
-        }
-        .x-count-pill {
-          padding: 5px 10px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          background: rgba(225, 29, 72, 0.15);
+          border: 1px solid rgba(251, 113, 133, 0.4);
+          color: #FFE4E6;
           border-radius: 999px;
+          padding: 4px 12px;
           font-family: "JetBrains Mono", monospace;
           font-size: 10px;
-          letter-spacing: 0.12em;
-          color: #FFFFFF;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-weight: 600;
         }
-        .x-helper-text {
-          color: var(--x-muted);
-          font-size: 11px;
-          font-weight: 300;
-          line-height: 1.55;
-          margin: 10px 0 6px;
-        }
-        .x-observation-list {
-          list-style: none;
-          overflow: auto;
-          margin: 6px -8px 0;
-          padding: 0 8px;
-          scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-          scrollbar-width: thin;
-        }
-        .x-observation-list li { min-width: 0; }
-        .x-observation {
-          position: relative;
-          display: grid;
-          grid-template-columns: 20px 1fr;
-          text-align: left;
-          width: 100%;
-          border: 1px solid transparent;
-          border-radius: 12px;
-          background: transparent;
-          padding: 10px 10px;
-          color: inherit;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .x-observation:hover {
-          background: rgba(255, 255, 255, 0.04);
-          border-color: rgba(255, 255, 255, 0.08);
-        }
-        .x-observation.is-selected {
-          background: linear-gradient(135deg, rgba(225, 29, 72, 0.14) 0%, rgba(139, 92, 246, 0.08) 100%);
-          border-color: rgba(251, 113, 133, 0.38);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        }
-        .x-observation-rail { position: relative; display: flex; justify-content: center; }
-        .x-observation-rail:after {
-          position: absolute;
-          content: "";
-          top: 15px;
-          bottom: -19px;
-          width: 1px;
-          background: rgba(255, 255, 255, 0.1);
-        }
-        .x-observation-list li:last-child .x-observation-rail:after { display: none; }
-        .x-timeline-dot {
-          position: relative;
-          z-index: 1;
-          margin-top: 4px;
-          width: 7px;
-          height: 7px;
-          border: 1px solid rgba(255, 255, 255, 0.4);
-          border-radius: 50%;
-          background: #08080C;
-          transition: all 0.2s ease;
-        }
-        .is-selected .x-timeline-dot {
-          border-color: #FFE4E6;
-          background: #E11D48;
-          box-shadow: 0 0 10px rgba(225, 29, 72, 0.8);
-        }
-        .x-observation-copy { display: grid; gap: 4px; min-width: 0; }
-        .x-observation-date {
-          display: flex;
-          justify-content: space-between;
-          gap: 6px;
-          color: #FFFFFF;
-          font-size: 11px;
-          font-weight: 500;
-        }
-        .x-observation-date span {
-          color: var(--x-dim);
+        .x-sub-eyebrow {
+          display: block;
           font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-        }
-        .x-observation-copy > strong {
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
+          font-size: 9.5px;
           letter-spacing: 0.16em;
           text-transform: uppercase;
-          color: #C4B5FD;
-        }
-        .is-selected .x-observation-copy > strong {
-          color: #FDA4AF;
-        }
-        .x-granule-name {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          color: var(--x-muted);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-        }
-        .x-list-hint {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-          margin-top: 8px;
-          color: var(--x-dim);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-        }
-        .x-empty {
-          display: grid;
-          place-content: center;
-          text-align: center;
-          min-height: 150px;
-          gap: 8px;
-          padding: 22px;
-          color: var(--x-muted);
-          font-size: 12px;
-          font-weight: 300;
-          line-height: 1.6;
-        }
-        .x-empty span:first-child {
-          font-family: "Space Grotesk", sans-serif;
-          font-size: 14px;
-          color: #FFFFFF;
-          font-weight: 500;
-        }
-
-        /* Row 2: 3-Column Inspection Deck (04 Selected Record | 05 SAR Imagery | 06 QA & Supabase) */
-        .x-inspection-deck {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
-          align-items: stretch;
-          min-width: 0;
-        }
-        .x-details {
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-        }
-        .x-details-empty { display: grid; place-items: center; min-height: 250px; }
-        .x-product-badge {
-          max-width: 145px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          background: rgba(139, 92, 246, 0.12);
-          border: 1px solid rgba(167, 139, 250, 0.32);
-          color: #DDD6FE;
-          border-radius: 999px;
-          padding: 5px 10px;
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.65);
         }
         .x-record-id {
           font-family: "JetBrains Mono", monospace;
-          font-size: 10px;
-          line-height: 1.55;
-          color: rgba(255, 255, 255, 0.78);
+          font-size: 11.5px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.9);
           overflow-wrap: anywhere;
-          margin: 12px 0 10px;
-          padding: 9px 11px;
-          border-radius: 10px;
+          margin: 10px 0;
+          padding: 8px 12px;
+          border-radius: 8px;
           background: rgba(4, 4, 6, 0.55);
-          border: 1px solid rgba(255, 255, 255, 0.07);
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .x-metadata { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; margin: 0; }
+        .x-metadata {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0 14px;
+          margin: 0;
+        }
         .x-metadata > div {
           min-width: 0;
-          padding: 8px 0;
-          border-top: 1px solid rgba(255, 255, 255, 0.07);
+          padding: 7px 0;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
         .x-metadata dt {
-          color: rgba(244, 244, 246, 0.72);
+          color: rgba(244, 244, 246, 0.7);
           font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.14em;
+          font-size: 10.5px;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
-          margin-bottom: 3px;
+          margin-bottom: 2px;
         }
         .x-metadata dd {
           margin: 0;
           color: #FFFFFF;
-          font-size: 11px;
+          font-size: 12.5px;
+          font-weight: 500;
           line-height: 1.45;
           overflow-wrap: anywhere;
         }
-        .x-record-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+        .x-record-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+          margin-top: 12px;
+        }
         .x-link-button,
         .x-icon-button,
+        .x-btn-ghost,
         .x-disabled-link {
           display: inline-flex;
           align-items: center;
@@ -1233,34 +1168,48 @@ export default function ExplorerPage() {
           gap: 7px;
           min-height: 34px;
           border-radius: 999px;
-          padding: 0 13px;
+          padding: 0 14px;
           font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
+          font-size: 9.5px;
           letter-spacing: 0.14em;
           text-transform: uppercase;
           transition: all 0.25s ease;
           cursor: pointer;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .x-link-button {
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 60%, rgba(225, 29, 72, 0.18) 100%);
-          border: 1px solid rgba(255, 255, 255, 0.26);
+          background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%);
+          border: 1px solid rgba(251, 113, 133, 0.55);
           color: #FFFFFF;
           text-decoration: none;
-          font-weight: 500;
-          box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(225, 29, 72, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
         }
         .x-link-button:hover {
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(225, 29, 72, 0.25) 100%);
-          border-color: rgba(255, 255, 255, 0.42);
+          background: linear-gradient(135deg, #FB7185 0%, #E11D48 100%);
+          border-color: rgba(255, 255, 255, 0.45);
+          color: #FFFFFF;
+          transform: translateY(-1px);
         }
         .x-icon-button {
           background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          color: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          color: rgba(255, 255, 255, 0.9);
         }
         .x-icon-button:hover {
-          background: rgba(255, 255, 255, 0.11);
-          border-color: rgba(255, 255, 255, 0.28);
+          background: rgba(255, 255, 255, 0.12);
+          border-color: rgba(251, 113, 133, 0.45);
+          color: #FFFFFF;
+        }
+        .x-btn-ghost {
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.65);
+        }
+        .x-btn-ghost:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.25);
           color: #FFFFFF;
         }
         .x-disabled-link {
@@ -1268,14 +1217,12 @@ export default function ExplorerPage() {
           background: rgba(255, 255, 255, 0.025);
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
-
-        /* Companion Cloud Assets & QA Telemetry Matrix */
         .x-cloud-assets {
-          margin-top: auto;
-          padding-top: 12px;
+          margin-top: 14px;
+          padding-top: 10px;
           border-top: 1px solid rgba(255, 255, 255, 0.08);
           display: grid;
-          gap: 8px;
+          gap: 6px;
         }
         .x-asset-chips {
           display: flex;
@@ -1286,27 +1233,163 @@ export default function ExplorerPage() {
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          padding: 5px 10px;
+          height: 28px;
+          padding: 0 10px;
           border-radius: 999px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(255, 255, 255, 0.04);
           color: rgba(255, 255, 255, 0.82);
           text-decoration: none;
           font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
+          font-size: 9px;
           letter-spacing: 0.1em;
           text-transform: uppercase;
           transition: all 0.2s ease;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .x-asset-chip:hover {
-          border-color: rgba(167, 139, 250, 0.45);
-          background: rgba(139, 92, 246, 0.14);
+          border-color: rgba(251, 113, 133, 0.45);
+          background: rgba(225, 29, 72, 0.14);
           color: #FFFFFF;
         }
 
-        /* Panel 06: Telemetry & Supabase Cloud Watchpoints */
-        .x-telemetry-panel {
-          padding: 20px;
+        /* Browse Panel */
+        .x-browse-panel {
+          padding: 18px 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .x-browse-tabs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .x-browse-tab {
+          display: inline-flex;
+          align-items: center;
+          height: 28px;
+          padding: 0 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(4, 4, 6, 0.6);
+          color: rgba(255, 255, 255, 0.68);
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          cursor: pointer;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .x-browse-tab.is-active {
+          border-color: rgba(251, 113, 133, 0.55);
+          background: rgba(225, 29, 72, 0.22);
+          color: #FFFFFF;
+        }
+        .x-browse-stage {
+          position: relative;
+          flex: 1;
+          min-height: 220px;
+          max-height: 300px;
+          border-radius: 14px;
+          overflow: hidden;
+          background: radial-gradient(circle at center, rgba(225, 29, 72, 0.08), #040406 75%);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .x-browse-loading {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 24px;
+          text-align: center;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 10.5px;
+          line-height: 1.5;
+          color: rgba(244, 244, 246, 0.85);
+          pointer-events: none;
+        }
+        .x-browse-loading span {
+          max-width: 320px;
+          display: block;
+        }
+        .x-browse-img {
+          width: 100%;
+          max-height: 280px;
+          object-fit: contain;
+          opacity: 0;
+          transition: opacity 0.25s ease;
+        }
+        .x-browse-img.is-loaded { opacity: 1; }
+        .x-browse-footer {
+          margin-top: auto;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--x-dim);
+        }
+        .x-browse-open {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          color: #FDA4AF;
+          text-decoration: none;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .x-browse-open:hover { color: #FFFFFF; }
+
+        /* L3 SME2 Soil Moisture Panel */
+        .x-sme2-stats {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .x-sme2-stats > div {
+          padding: 10px;
+          border-radius: 12px;
+          background: rgba(4, 4, 6, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          display: grid;
+          gap: 3px;
+        }
+        .x-sme2-stats span {
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: var(--x-dim);
+        }
+        .x-sme2-stats strong {
+          font-family: "Space Grotesk", sans-serif;
+          font-size: 16px;
+          color: #FFFFFF;
+        }
+        .x-sme2-stats small {
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9px;
+          color: var(--x-muted);
+        }
+
+        /* QA & Database Watchpoints Panel */
+        .x-qa-watchpoints-panel {
+          padding: 18px 20px;
           display: flex;
           flex-direction: column;
           gap: 14px;
@@ -1332,16 +1415,18 @@ export default function ExplorerPage() {
           padding: 3px 8px;
           border-radius: 999px;
           font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
+          font-size: 9px;
           letter-spacing: 0.12em;
           text-transform: uppercase;
           background: rgba(255, 255, 255, 0.06);
           color: rgba(255, 255, 255, 0.75);
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .x-qa-pill.is-pass {
-          background: rgba(139, 92, 246, 0.16);
-          border: 1px solid rgba(167, 139, 250, 0.35);
-          color: #DDD6FE;
+          background: rgba(16, 185, 129, 0.16);
+          border: 1px solid rgba(52, 211, 153, 0.4);
+          color: #6EE7B7;
         }
         .x-qa-list {
           display: grid;
@@ -1364,27 +1449,27 @@ export default function ExplorerPage() {
         }
         .x-qa-row strong {
           display: block;
-          font-size: 10.5px;
+          font-size: 11px;
           font-weight: 500;
           color: #FFFFFF;
         }
         .x-qa-row span {
           font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
+          font-size: 9px;
           color: var(--x-muted);
         }
         .x-qa-badge {
           padding: 3px 7px;
           border-radius: 999px;
           font-family: "JetBrains Mono", monospace;
-          font-size: 8px;
+          font-size: 8.5px;
           letter-spacing: 0.14em;
           text-transform: uppercase;
         }
         .x-qa-badge.is-pass {
-          background: rgba(139, 92, 246, 0.18);
-          border: 1px solid rgba(167, 139, 250, 0.4);
-          color: #DDD6FE;
+          background: rgba(16, 185, 129, 0.18);
+          border: 1px solid rgba(52, 211, 153, 0.4);
+          color: #6EE7B7;
         }
         .x-qa-badge.is-warn {
           background: rgba(225, 29, 72, 0.2);
@@ -1392,156 +1477,6 @@ export default function ExplorerPage() {
           color: #FFE4E6;
         }
 
-        /* Panel 05: Real NISAR SAR Browse Imagery Card */
-        .x-browse-panel {
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .x-drape-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 5px 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.04);
-          color: rgba(255, 255, 255, 0.78);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .x-drape-btn.is-active {
-          border-color: rgba(251, 113, 133, 0.48);
-          background: rgba(225, 29, 72, 0.18);
-          color: #FFE4E6;
-        }
-        .x-browse-tabs {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-        }
-        .x-browse-tab {
-          padding: 5px 9px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(4, 4, 6, 0.6);
-          color: rgba(255, 255, 255, 0.68);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          cursor: pointer;
-        }
-        .x-browse-tab.is-active {
-          border-color: rgba(167, 139, 250, 0.45);
-          background: rgba(139, 92, 246, 0.18);
-          color: #FFFFFF;
-        }
-        .x-browse-stage {
-          position: relative;
-          flex: 1;
-          min-height: 220px;
-          max-height: 290px;
-          border-radius: 14px;
-          overflow: hidden;
-          background: radial-gradient(circle at center, rgba(139, 92, 246, 0.12), #040406 75%);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .x-browse-loading {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-          padding: 20px;
-          text-align: center;
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9.5px;
-          color: var(--x-muted);
-        }
-        .x-browse-img {
-          width: 100%;
-          max-height: 280px;
-          object-fit: contain;
-          opacity: 0;
-          transition: opacity 0.25s ease;
-        }
-        .x-browse-img.is-loaded {
-          opacity: 1;
-        }
-        .x-browse-footer {
-          margin-top: auto;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: var(--x-dim);
-        }
-        .x-browse-open {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          color: #DDD6FE;
-          text-decoration: none;
-        }
-        .x-browse-open:hover {
-          color: #FFFFFF;
-        }
-
-        /* L3 SME2 Soil Moisture Stats Card */
-        .x-sme2-stats {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 8px;
-          margin-top: 10px;
-        }
-        .x-sme2-stats > div {
-          padding: 10px;
-          border-radius: 12px;
-          background: rgba(4, 4, 6, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          display: grid;
-          gap: 3px;
-        }
-        .x-sme2-stats span {
-          font-family: "JetBrains Mono", monospace;
-          font-size: 8px;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          color: var(--x-dim);
-        }
-        .x-sme2-stats strong {
-          font-family: "Space Grotesk", sans-serif;
-          font-size: 16px;
-          color: #FFFFFF;
-        }
-        .x-sme2-stats small {
-          font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
-          color: var(--x-muted);
-        }
-
-        .x-inspection-deck .synthetic-preview { max-width: none; border-radius: 20px; height: 100%; }
-        .x-inspection-deck .sp-content { grid-template-columns: 1fr; padding: 14px; }
-        .x-inspection-deck .sp-aside { display: none; }
-        .x-inspection-deck .sp-visual svg { min-height: 150px; }
-        .x-inspection-deck .sp-topline { padding: 14px 18px; }
-        .x-inspection-deck .sp-heading { font-size: 14px; }
-        .x-inspection-deck .sp-tag { font-size: 8px; padding: 5px 8px; }
-        .x-inspection-deck .sp-disclaimer { padding: 11px 16px; font-size: 10px; }
-
-        /* Watchpoints Sub-section inside Panel 06 */
         .x-watchpoints-sub {
           padding-top: 12px;
           border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1570,12 +1505,12 @@ export default function ExplorerPage() {
           transition: all 0.2s ease;
         }
         .x-wp-card:hover {
-          border-color: rgba(167, 139, 250, 0.35);
+          border-color: rgba(251, 113, 133, 0.4);
           background: rgba(255, 255, 255, 0.045);
         }
         .x-wp-card.is-active {
-          border-color: rgba(251, 113, 133, 0.48);
-          background: linear-gradient(135deg, rgba(225, 29, 72, 0.14) 0%, rgba(139, 92, 246, 0.08) 100%);
+          border-color: rgba(251, 113, 133, 0.75);
+          background: linear-gradient(135deg, rgba(225, 29, 72, 0.22) 0%, rgba(190, 18, 60, 0.12) 100%);
         }
         .x-wp-top {
           display: flex;
@@ -1591,13 +1526,13 @@ export default function ExplorerPage() {
         }
         .x-wp-meta {
           font-family: "JetBrains Mono", monospace;
-          font-size: 8.5px;
+          font-size: 9px;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #C4B5FD;
+          color: #FDA4AF;
         }
         .x-wp-notes {
-          font-size: 10px;
+          font-size: 10.5px;
           line-height: 1.45;
           color: var(--x-muted);
           margin: 2px 0 0;
@@ -1609,68 +1544,55 @@ export default function ExplorerPage() {
           padding: 2px;
           cursor: pointer;
         }
-        .x-wp-del:hover {
-          color: #FB7185;
-        }
+        .x-wp-del:hover { color: #FB7185; }
 
-        /* Compact Bottom Telemetry Footer Bar */
-        .x-footer-bar {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          padding: 12px 16px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 14px;
-          background: rgba(255, 255, 255, 0.02);
-        }
-        .x-source-note {
-          display: flex;
-          align-items: center;
-          gap: 9px;
+        .x-empty {
+          display: grid;
+          place-content: center;
+          text-align: center;
+          min-height: 150px;
+          gap: 8px;
+          padding: 22px;
           color: var(--x-muted);
-          font-size: 11px;
-          line-height: 1.5;
+          font-size: 13px;
+          font-weight: 300;
+          line-height: 1.6;
         }
-        .x-source-note strong { color: #FFFFFF; font-weight: 500; }
-        .x-parse-warning { color: #FDA4AF; }
-        .x-footnote {
-          margin: 0;
-          color: var(--x-dim);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          line-height: 1.5;
+        .x-empty span:first-child {
+          font-family: "Space Grotesk", sans-serif;
+          font-size: 15px;
+          color: #FFFFFF;
+          font-weight: 500;
         }
+        .x-details-empty { display: grid; place-items: center; min-height: 250px; }
 
         @media (max-width: 1180px) {
           .x-primary-stage { grid-template-columns: 1fr; }
-          .x-globe-column { grid-column: 1 / -1; grid-template-rows: 500px auto; }
-          .x-navigator-column { grid-column: 1 / -1; height: auto; }
-          .x-timeline { max-height: 400px; }
-          .x-inspection-deck { grid-template-columns: 1fr 1fr; }
-          .x-telemetry-panel { grid-column: 1 / -1; }
+          .x-globe-viewport { height: 480px; min-height: 480px; max-height: 480px; }
+          .x-globe-viewport .x-globe-card { min-height: 480px !important; }
+          .x-timeline-column .x-timeline { height: 420px; min-height: 420px; max-height: 420px; }
+          .x-cmd-grid { flex-direction: column; }
+          .x-coord-tool { flex: 1 1 100%; }
         }
         @media (max-width: 760px) {
-          .x-explorer { padding: 0 14px 28px; }
-          .x-topbar { padding: 10px 14px; }
-          .x-brand-name { font-size: 11px; }
-          .x-title-row { padding: 20px 0 14px; align-items: flex-start; flex-direction: column; }
-          .x-live-tag { font-size: 8px; }
-          .x-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-          .x-metrics > div { padding: 12px; }
-          .x-globe-column { grid-template-rows: 380px auto; }
-          .x-globe-card { min-height: 360px !important; }
-          .x-inspection-deck { grid-template-columns: 1fr; }
-          .x-metadata { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 380px) {
-          .x-explorer { padding-inline: 10px; }
-          .x-date-field { grid-template-columns: 1fr; }
-          .x-metadata { grid-template-columns: 1fr; }
-          .x-live-tag { white-space: normal; }
+          .x-explorer { padding: 0 12px 28px; }
+          .x-topbar { padding: 10px 14px; flex-wrap: wrap; }
+          .x-console-header { padding: 16px 0 12px; }
+          .x-earthdata-bar { padding: 12px 14px; }
+          .x-cmd-presets { grid-template-columns: 1fr; }
+          .x-globe-viewport { height: 380px; min-height: 380px; max-height: 380px; }
+          .x-globe-viewport .x-globe-card { min-height: 380px !important; }
+          .x-timeline-column .x-timeline { height: 350px; min-height: 350px; max-height: 350px; }
+          .x-globe-legend {
+            bottom: 8px;
+            left: 8px;
+            right: 8px;
+            padding: 8px 12px;
+            font-size: 9.5px;
+          }
+          .x-coord-inputs { flex-wrap: wrap; }
+          .x-coord-field { flex: 1 1 calc(50% - 4px); }
+          .x-coord-submit { width: 100%; margin-top: 4px; }
         }
         @media (prefers-reduced-motion: reduce) {
           .x-explorer * { scroll-behavior: auto !important; transition: none !important; }
@@ -1678,7 +1600,7 @@ export default function ExplorerPage() {
       `}</style>
 
       <div className="x-shell">
-        {/* Top Floating Frosted Glass Navbar (Matches Landing Page Header) */}
+        {/* Top Navbar with Spatial Breadcrumb Anchor */}
         <div className="x-topbar-wrap">
           <header className="x-topbar">
             <a className="x-brand" href="/">
@@ -1692,170 +1614,202 @@ export default function ExplorerPage() {
               <div>
                 <div className="x-brand-name">TEAM ZENITH</div>
                 <div className="x-brand-sub">
-                  NASA SPACE APPS 2026 · FIELD CONSOLE
+                  NASA SPACE APPS 2026 · MISSION CONSOLE
                 </div>
               </div>
             </a>
 
-            <div className="hidden md:flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08]">
-              <ZenithEmblem className="w-5 h-4" />
-              <span className="font-mono text-[9px] tracking-[0.22em] uppercase text-white/65">
-                05 // NISAR ORBITAL CATALOG · SUPABASE + EARTHDATA CLOUD
-              </span>
-            </div>
-
             <a className="x-back" href="/">
               <ArrowLeft size={13} aria-hidden="true" />
-              <span>Back to Mission</span>
+              <span>Back to Home</span>
             </a>
           </header>
         </div>
 
-        {/* Section Title Row with Zenith Architectural Signature */}
-        <div className="x-title-row">
-          <div>
-            <div className="x-eyebrow">
+        {/* Scientific Console Header */}
+        <div className="x-console-header">
+          <div className="x-console-title-group">
+            <span className="x-eyebrow">
               <DiamondCrosshair />
-              <span>05 // MISSION DATA EXPLORER · NASA-ISRO SAR</span>
-            </div>
+              <span>MISSION DATA EXPLORER · NASA-ISRO SAR</span>
+            </span>
             <h1>
-              Surface signals, <strong>in context.</strong>
+              NISAR Earth Observation <strong>Workspace</strong>
             </h1>
-            <div className="x-title-bars" aria-hidden="true">
-              <span className="w-2.5 h-[1.5px] bg-white/80 block" />
-              <span className="w-7 h-[1.5px] bg-white/80 block" />
-            </div>
             <p>
-              Explore authenticated NISAR acquisitions, stream real L-band SAR
-              browse imagery &amp; QA telemetry via Supabase CDN + NASA Earthdata
-              Cloud, or inspect the 561-pixel L3 Soil Moisture grid on 3D terrain.
+              Authenticated L-band radar acquisitions, 561-pixel L3 Soil Moisture EASE-Grid 2.0 telemetry, and real-time multi-temporal surface change detection.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div
-              className="x-live-tag"
-              aria-label={`Supabase Cloud and NASA Earthdata Login authenticated, snapshot ${snapshotDate}`}
-            >
-              <span className="x-live-dot animate-pulse" aria-hidden="true" />
-              <span>
-                SUPABASE + EARTHDATA ACTIVE · UID ABRAR43
-              </span>
-            </div>
+          <div className="x-console-status-group flex items-center gap-3">
             <DotGridMark className="hidden sm:grid shrink-0" />
           </div>
         </div>
 
-        {/* Live NASA Earthdata CMR Search & Svalbard L3 Soil Moisture Command Bar */}
+        {/* Command Station: Live NASA Earthdata Study Region Selector */}
         <section
           className="x-earthdata-bar"
-          aria-label="Live NASA Earthdata and ASF CMR query controls"
+          aria-label="Scientific target selector and live NASA Earthdata search"
         >
-          <div className="x-earthdata-presets">
-            {LIVE_REGION_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                disabled={liveLoading}
-                className={`x-preset-btn${
-                  activePreset === preset.id ? ' is-active' : ''
-                }`}
-                onClick={() =>
-                  runLiveAsfQuery(preset.coords, preset.id, preset.label)
-                }
-                title={preset.subtitle}
-              >
-                {liveLoading && activePreset === preset.id ? (
-                  <Loader2 size={11} className="animate-spin" />
-                ) : (
-                  <Radar size={11} aria-hidden="true" />
-                )}
-                <span>{preset.label}</span>
-              </button>
-            ))}
-
-            <button
-              type="button"
-              className="x-preset-btn is-sme2"
-              onClick={handleFocusSme2}
-              title="Select and fly to the 561-pixel L3 Soil Moisture (SME2) EASE-Grid 2.0 over Svalbard"
-            >
-              <Sparkles size={11} aria-hidden="true" />
-              <span>561-Pixel L3 Soil Moisture Grid</span>
-            </button>
-          </div>
-
-          <form className="x-custom-coord-form" onSubmit={handleCustomSearch}>
-            <input
-              type="text"
-              className="x-coord-input"
-              value={customLat}
-              onChange={(e) => setCustomLat(e.target.value)}
-              placeholder="Lat (°N)"
-              aria-label="Custom latitude"
-            />
-            <input
-              type="text"
-              className="x-coord-input"
-              value={customLon}
-              onChange={(e) => setCustomLon(e.target.value)}
-              placeholder="Lon (°E)"
-              aria-label="Custom longitude"
-            />
-            <button
-              type="submit"
-              disabled={liveLoading}
-              className="x-preset-btn"
-              title="Query live NASA ASF CMR catalog at custom coordinates"
-            >
-              <Globe size={11} aria-hidden="true" />
-              <span>Query ASF</span>
-            </button>
-          </form>
-
-          <div className="x-earthdata-status" role="status" aria-live="polite">
-            <span className="inline-flex items-center gap-2">
-              <ShieldCheck size={12} className="text-[#A78BFA] shrink-0" />
-              <span>{liveStatusMsg}</span>
-            </span>
+          {/* Top Bar: Section Header / Guidance */}
+          <div className="x-cmd-header">
+            <div className="x-cmd-title-wrap">
+              <span className="x-cmd-eyebrow">
+                <Compass size={12} className="text-[#FB7185]" aria-hidden="true" />
+                <span>TARGET OBSERVATION SELECTOR · NASA EARTHDATA CLOUD</span>
+              </span>
+              <h2 className="x-cmd-title">Select Study Region or Query Global Coordinates</h2>
+              <p className="x-cmd-desc">
+                Select a scientific testbed to fetch verified NISAR L-band SAR granules from NASA Earthdata Cloud, or query custom coordinates.
+              </p>
+            </div>
             {liveRecords && (
               <button
                 type="button"
-                className="x-preset-btn"
-                onClick={() => runLiveAsfQuery(null, 'local', 'Local Snapshot')}
+                className="x-cmd-restore-btn"
+                onClick={() => runLiveAsfQuery(null, 'local', 'Meghna Baseline')}
+                title="Restore default 154-granule calibrated Meghna archive"
               >
-                <RefreshCw size={10} />
-                <span>Restore Local Catalog</span>
+                <RefreshCw size={11} aria-hidden="true" />
+                <span>Restore Baseline Archive</span>
               </button>
             )}
           </div>
+
+          {/* Interactive Row: Region Presets + Featured Product + Coordinate Search */}
+          <div className="x-cmd-grid">
+            {/* Presets List */}
+            <div className="x-cmd-presets" role="group" aria-label="Target observation regions">
+              {LIVE_REGION_PRESETS.map((preset) => {
+                const isActive = activePreset === preset.id;
+                const isLoadingThis = liveLoading && activePreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    disabled={liveLoading}
+                    className={`x-region-card${isActive ? ' is-active' : ''}`}
+                    onClick={() =>
+                      runLiveAsfQuery(preset.coords, preset.id, preset.label)
+                    }
+                    title={`${preset.label} — ${preset.subtitle} (${preset.tag})`}
+                  >
+                    <div className="x-region-top">
+                      <span className="x-region-indicator">
+                        {isLoadingThis ? (
+                          <Loader2 size={11} className="animate-spin text-[#FB7185]" />
+                        ) : (
+                          <Radar size={11} className={isActive ? 'text-[#FB7185]' : 'text-white/60'} />
+                        )}
+                      </span>
+                      <span className="x-region-name">{preset.label}</span>
+                    </div>
+                    <div className="x-region-meta">
+                      <span className="x-region-tag">{preset.tag}</span>
+                      <span className="x-region-sub">{preset.subtitle}</span>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Special Featured L3 Product Card */}
+              <button
+                type="button"
+                className={`x-region-card is-sme2${isSme2Active ? ' is-active' : ''}`}
+                onClick={handleFocusSme2}
+                title="Select and fly to the 561-pixel L3 Soil Moisture (SME2) EASE-Grid 2.0 over Svalbard"
+              >
+                <div className="x-region-top">
+                  <span className="x-region-indicator">
+                    <Sparkles size={11} className={isSme2Active ? 'text-[#FB7185]' : 'text-white/60'} />
+                  </span>
+                  <span className="x-region-name">L3 Soil Moisture</span>
+                </div>
+                <div className="x-region-meta">
+                  <span className="x-region-tag">561 Px · Svalbard</span>
+                  <span className="x-region-sub">200m EASE-Grid 2.0</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Custom Coordinates Search Tool */}
+            <form className="x-coord-tool" onSubmit={handleCustomSearch}>
+              <div className="x-coord-label">
+                <Globe size={11} className="text-white/60" aria-hidden="true" />
+                <span>Custom Global Coordinates</span>
+              </div>
+              <div className="x-coord-inputs">
+                <div className="x-coord-field">
+                  <label htmlFor="custom-lat" className="sr-only">Latitude</label>
+                  <input
+                    id="custom-lat"
+                    type="text"
+                    className="x-coord-input"
+                    value={customLat}
+                    onChange={(e) => setCustomLat(e.target.value)}
+                    placeholder="Lat (e.g. 23.81)"
+                    aria-label="Latitude in decimal degrees"
+                  />
+                  <span className="x-coord-unit">°N</span>
+                </div>
+                <div className="x-coord-field">
+                  <label htmlFor="custom-lon" className="sr-only">Longitude</label>
+                  <input
+                    id="custom-lon"
+                    type="text"
+                    className="x-coord-input"
+                    value={customLon}
+                    onChange={(e) => setCustomLon(e.target.value)}
+                    placeholder="Lon (e.g. 90.41)"
+                    aria-label="Longitude in decimal degrees"
+                  />
+                  <span className="x-coord-unit">°E</span>
+                </div>
+                <button
+                  type="submit"
+                  disabled={liveLoading}
+                  className="x-coord-submit"
+                  title="Query live NASA Earthdata CMR archive at custom coordinates"
+                >
+                  {liveLoading && activePreset === 'custom' ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Search size={12} aria-hidden="true" />
+                  )}
+                  <span>Query NASA CMR</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </section>
 
-        {/* Telemetry Summary Strip */}
-        <div className="x-metrics" aria-label="Catalog summary">
-          <div>
-            <span>Catalog records</span>
-            <strong>{features.length}</strong>
-          </div>
-          <div>
-            <span>Visible results</span>
-            <strong>{filtered.length}</strong>
-          </div>
-          <div>
-            <span>Product types</span>
-            <strong>{types.length}</strong>
-          </div>
-          <div>
-            <span>Acquisition span</span>
-            <strong>{dateCoverage || '—'}</strong>
-          </div>
-        </div>
+        {/* Consolidated Horizontal Filter & Telemetry Bar */}
+        <CatalogFilters
+          productTypes={types}
+          filters={filters}
+          onChange={setFilters}
+          onReset={() => setFilters(INITIAL_FILTERS)}
+          resultCount={filtered.length}
+          totalCount={features.length}
+          coverage={coverageLabel(features)}
+        />
 
-        {/* Organized 2-Tier Command Center Workspace */}
-        <div className="x-workspace">
-          {/* Row 1: Primary Stage — 2-Column Widescreen 3D Globe (Left) + 1-Column Filter & Timeline Navigator (Right) */}
-          <div className="x-primary-stage">
-            <div className="x-globe-column">
+        {/* 2-Column Primary Geospatial Workspace (70% Globe / 30% Timeline) */}
+        <div className="x-primary-stage">
+          <div className="x-globe-column">
+            <ComparePairBar
+              comparePair={comparePair}
+              activePartner={activePartner}
+              changeProduct={changeProduct}
+              onStartAutoCompare={handleStartAutoCompare}
+              compareLayerMode={compareLayerMode}
+              onSetCompareMode={setCompareLayerMode}
+              compareOpacity={compareOpacity}
+              onOpacityChange={setCompareOpacity}
+              onSwapCompare={handleSwapCompare}
+              onExitCompare={handleExitCompare}
+            />
+            <div className="x-globe-viewport">
               <GlobeViewer
                 features={filtered}
                 selectedId={activeId}
@@ -1886,31 +1840,31 @@ export default function ExplorerPage() {
                         <i style={{ background: 'transparent', border: '1px dashed rgba(244, 244, 246, 0.4)' }} aria-hidden="true" /> Stable Backscatter (±1 dB)
                       </span>
                       <span>
-                        <i style={{ background: '#8B5CF6', border: '1px solid #A78BFA' }} aria-hidden="true" /> Rise (≥ +3 dB · Surface Drying)
+                        <i style={{ background: '#0284C7', border: '1px solid #38BDF8' }} aria-hidden="true" /> Rise (≥ +3 dB · Surface Drying)
                       </span>
                     </div>
                   ) : compareLayerMode === 'curtain' ? (
                     <div className="flex flex-wrap items-center gap-4">
                       <span>
-                        <i style={{ background: '#8B5CF6', border: '1px solid #A78BFA' }} aria-hidden="true" /> Date A ({comparePair.granuleA?.properties?.acquisitionDate ?? 'Ref'})
+                        <i style={{ background: '#F4F4F6', border: '1px solid #FFFFFF' }} aria-hidden="true" /> Date A ({comparePair.granuleA?.properties?.acquisitionDate ?? 'Ref'})
                       </span>
                       <span>
                         <i style={{ background: '#E11D48', border: '1px solid #FB7185' }} aria-hidden="true" /> Date B ({comparePair.granuleB?.properties?.acquisitionDate ?? 'Sec'})
                       </span>
                       <span>
-                        <i style={{ background: '#F4F4F6', border: '1px solid #FFFFFF' }} aria-hidden="true" /> Interactive 3D Curtain Divider
+                        <i style={{ background: '#FB7185', border: '1px solid #FDA4AF' }} aria-hidden="true" /> Interactive 3D Curtain Divider
                       </span>
                     </div>
                   ) : (
                     <div className="flex flex-wrap items-center gap-4">
                       <span>
-                        <i style={{ background: '#4C1D95', border: '1px solid #6D28D9' }} aria-hidden="true" /> Permanent Water
+                        <i style={{ background: '#1E3A8A', border: '1px solid #3B82F6' }} aria-hidden="true" /> Permanent Water
                       </span>
                       <span>
                         <i style={{ background: '#E11D48', border: '1px solid #FB7185' }} aria-hidden="true" /> New Water / Flood
                       </span>
                       <span>
-                        <i style={{ background: '#C4B5FD', border: '1px solid #DDD6FE' }} aria-hidden="true" /> Water Receded / Lost
+                        <i style={{ background: '#38BDF8', border: '1px solid #7DD3FC' }} aria-hidden="true" /> Water Receded / Lost
                       </span>
                       <span>
                         <i style={{ background: 'transparent', border: '1px dashed rgba(244, 244, 246, 0.4)' }} aria-hidden="true" /> Unchanged Land
@@ -1930,7 +1884,7 @@ export default function ExplorerPage() {
                     </span>
                   </div>
                 )}
-                <span className="text-white/45">
+                <span className="x-globe-legend-hint">
                   {comparePair
                     ? changeLoading
                       ? 'Computing SAR Co-Registration & Speckle Filter…'
@@ -1939,77 +1893,41 @@ export default function ExplorerPage() {
                 </span>
               </div>
             </div>
-
-            <div className="x-navigator-column">
-              <CatalogFilters
-                productTypes={types}
-                filters={filters}
-                onChange={setFilters}
-                onReset={() => setFilters(INITIAL_FILTERS)}
-                resultCount={filtered.length}
-                totalCount={features.length}
-                coverage={coverageLabel(features)}
-              />
-              <CatalogTimeline
-                features={filtered}
-                selectedId={activeId}
-                onSelect={setSelectedId}
-                comparePair={comparePair}
-                onSelectAsDateA={handleSelectAsDateA}
-                onSelectAsDateB={handleSelectAsDateB}
-                onAutoPair={handleStartAutoCompare}
-              />
-            </div>
           </div>
 
-          {/* Row 2: 3-Column Inspection Deck — 04 Selected Record | 05 Authenticated SAR Imagery | 06 QA & Supabase Cloud */}
-          <RecordDetails
-            feature={selected}
-            drapeRadarOnGlobe={drapeRadarOnGlobe}
-            onToggleDrapeRadar={() => setDrapeRadarOnGlobe((prev) => !prev)}
-            onFlyToSme2={handleFocusSme2}
-            onPinWatchpoint={handlePinWatchpoint}
-            isPinned={isSelectedPinned}
-            pinning={pinning}
-            watchpoints={watchpoints}
-            onSelectWatchpoint={handleSelectWatchpoint}
-            onDeleteWatchpoint={handleDeleteWatchpoint}
-            activeId={activeId}
-            comparePair={comparePair}
-            changeProduct={changeProduct}
-            activeThresholdDb={activeThresholdDb}
-            onThresholdChange={handleThresholdChange}
-            onExitCompare={handleExitCompare}
-          />
-
-          {/* Row 3: Compact Telemetry Source Footer */}
-          <footer className="x-footer-bar">
-            <div className="x-source-note">
-              <Database
-                size={14}
-                className="text-[#A78BFA] shrink-0"
-                aria-hidden="true"
-              />
-              <span>
-                <strong>{features.length} valid footprints</strong> loaded (
-                {liveRecords ? 'Live NASA ASF CMR API' : '153 ASF + 1 L3 SME2'}
-                )
-                {catalog.errors.length > 0 && (
-                  <span className="x-parse-warning">
-                    {' '}
-                    · {catalog.errors.length} record
-                    {catalog.errors.length === 1 ? '' : 's'} skipped due to
-                    invalid geometry
-                  </span>
-                )}
-              </span>
-            </div>
-            <p className="x-footnote">
-              Supabase Storage CDN (`nisar-browse-cache`) + Earthdata Cloud
-              active · Real SAR browse rasters, QA CSV checks, and L3 SME2 grid.
-            </p>
-          </footer>
+          <div className="x-timeline-column">
+            <CatalogTimeline
+              features={filtered}
+              selectedId={activeId}
+              onSelect={setSelectedId}
+              comparePair={comparePair}
+              activePartner={activePartner}
+              onSelectAsDateA={handleSelectAsDateA}
+              onSelectAsDateB={handleSelectAsDateB}
+              onAutoPair={handleStartAutoCompare}
+            />
+          </div>
         </div>
+
+        {/* Secondary Analysis Workbench: Tabbed Observation Inspector */}
+        <RecordDetails
+          feature={selected}
+          drapeRadarOnGlobe={drapeRadarOnGlobe}
+          onToggleDrapeRadar={() => setDrapeRadarOnGlobe((prev) => !prev)}
+          onFlyToSme2={handleFocusSme2}
+          onPinWatchpoint={handlePinWatchpoint}
+          isPinned={isSelectedPinned}
+          pinning={pinning}
+          watchpoints={watchpoints}
+          onSelectWatchpoint={handleSelectWatchpoint}
+          onDeleteWatchpoint={handleDeleteWatchpoint}
+          activeId={activeId}
+          comparePair={comparePair}
+          changeProduct={changeProduct}
+          activeThresholdDb={activeThresholdDb}
+          onThresholdChange={handleThresholdChange}
+          onExitCompare={handleExitCompare}
+        />
       </div>
     </main>
   );

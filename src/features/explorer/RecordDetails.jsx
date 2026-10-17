@@ -10,8 +10,10 @@ import {
   FileCode2,
   FileSpreadsheet,
   FileText,
-  Layers,
+  Grid,
+  LayoutGrid,
   Loader2,
+  Maximize2,
   RadioTower,
   Sparkles,
   Trash2,
@@ -25,14 +27,20 @@ function valueOrDash(value) {
   return value == null || value === '' ? 'Not provided' : String(value);
 }
 
+function formatCoord(val, isLat) {
+  const dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
+  return `${Math.abs(val).toFixed(3)}° ${dir}`;
+}
+
 function centerOf(feature) {
   const points = feature?.geometry?.coordinates?.[0] ?? [];
   if (!points.length) return null;
-  const totals = points
-    .slice(0, -1)
-    .reduce((sum, [lon, lat]) => [sum[0] + lon, sum[1] + lat], [0, 0]);
-  const count = Math.max(points.length - 1, 1);
-  return `${(totals[0] / count).toFixed(3)}°, ${(totals[1] / count).toFixed(3)}°`;
+  const validPoints = points.slice(0, -1).length > 0 ? points.slice(0, -1) : points;
+  const totals = validPoints.reduce((sum, [lon, lat]) => [sum[0] + lon, sum[1] + lat], [0, 0]);
+  const count = Math.max(validPoints.length, 1);
+  const avgLon = totals[0] / count;
+  const avgLat = totals[1] / count;
+  return `${formatCoord(avgLat, true)}, ${formatCoord(avgLon, false)}`;
 }
 
 function formatBytes(bytes) {
@@ -109,12 +117,28 @@ export default function RecordDetails({
   onExitCompare,
 }) {
   const [copied, setCopied] = useState(false);
+  const [granuleCopied, setGranuleCopied] = useState(false);
   const [selectedBrowseIdx, setSelectedBrowseIdx] = useState(0);
   const [browseLoaded, setBrowseLoaded] = useState(false);
   const [browseError, setBrowseError] = useState(false);
   const [qaRows, setQaRows] = useState([]);
   const [qaStatus, setQaStatus] = useState('idle');
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'details' | 'imagery' | 'telemetry'
   const copyTimeoutRef = useRef(null);
+  const granuleCopyTimeoutRef = useRef(null);
+
+  const copyGranuleId = async () => {
+    const gid = feature?.properties?.granuleName ?? feature?.properties?.granuleUr ?? feature?.id;
+    if (!gid || !navigator.clipboard?.writeText) return;
+    try {
+      await navigator.clipboard.writeText(gid);
+      setGranuleCopied(true);
+      if (granuleCopyTimeoutRef.current) window.clearTimeout(granuleCopyTimeoutRef.current);
+      granuleCopyTimeoutRef.current = window.setTimeout(() => setGranuleCopied(false), 2000);
+    } catch {
+      setGranuleCopied(false);
+    }
+  };
 
   const p = feature?.properties ?? {};
 
@@ -301,8 +325,15 @@ export default function RecordDetails({
     };
 
     return (
-      <div className="x-inspection-deck">
+      <div className="x-compare-studio">
         <style>{`
+          .x-compare-studio {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            align-items: stretch;
+          }
           .x-compare-pair-grid {
             display: flex;
             flex-direction: column;
@@ -310,65 +341,65 @@ export default function RecordDetails({
             margin-bottom: 12px;
           }
           .x-compare-granule-card {
-            background: rgba(12, 12, 18, 0.7);
-            border: 1px solid rgba(244, 244, 246, 0.08);
-            border-radius: 8px;
-            padding: 10px 12px;
+            background: rgba(12, 12, 18, 0.75);
+            border: 1px solid rgba(244, 244, 246, 0.09);
+            border-radius: 10px;
+            padding: 11px 13px;
           }
           .x-compare-granule-card.is-card-a {
-            border-color: rgba(139, 92, 246, 0.35);
+            border-color: rgba(139, 92, 246, 0.4);
           }
           .x-compare-granule-card.is-card-b {
-            border-color: rgba(225, 29, 72, 0.35);
+            border-color: rgba(225, 29, 72, 0.4);
           }
           .x-granule-card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
           }
           .x-date-pill {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 9.5px;
+            font-size: 10px;
             font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
             letter-spacing: 0.04em;
           }
           .x-date-pill.is-pill-a {
-            background: rgba(139, 92, 246, 0.2);
-            color: #C4B5FD;
-            border: 1px solid rgba(139, 92, 246, 0.4);
+            background: rgba(255, 255, 255, 0.08);
+            color: #F4F4F6;
+            border: 1px solid rgba(255, 255, 255, 0.22);
           }
           .x-date-pill.is-pill-b {
-            background: rgba(225, 29, 72, 0.2);
+            background: rgba(225, 29, 72, 0.22);
             color: #FB7185;
-            border: 1px solid rgba(225, 29, 72, 0.4);
+            border: 1px solid rgba(225, 29, 72, 0.45);
           }
           .x-granule-date {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             color: #F4F4F6;
           }
           .x-granule-name-box {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: rgba(244, 244, 246, 0.65);
+            font-size: 10.5px;
+            color: rgba(244, 244, 246, 0.7);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
           }
           .x-granule-mini-fields {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4px 10px;
+            gap: 6px 12px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 9.5px;
+            font-size: 10px;
           }
           .x-granule-mini-fields span {
-            color: rgba(244, 244, 246, 0.45);
+            color: rgba(244, 244, 246, 0.5);
           }
           .x-granule-mini-fields strong {
             color: #F4F4F6;
@@ -378,13 +409,13 @@ export default function RecordDetails({
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(139, 92, 246, 0.12);
-            border: 1px solid rgba(139, 92, 246, 0.35);
-            padding: 7px 10px;
-            border-radius: 6px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            padding: 8px 12px;
+            border-radius: 8px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: #C4B5FD;
+            font-size: 10.5px;
+            color: #6EE7B7;
             margin-bottom: 12px;
           }
           .x-telemetry-cards-grid {
@@ -396,81 +427,88 @@ export default function RecordDetails({
           .x-telemetry-card {
             background: rgba(12, 12, 18, 0.75);
             border: 1px solid rgba(244, 244, 246, 0.1);
-            border-radius: 8px;
-            padding: 8px 10px;
+            border-radius: 10px;
+            padding: 10px 12px;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 3px;
           }
           .x-telemetry-card.is-perm {
-            border-color: rgba(76, 29, 149, 0.6);
-            background: rgba(76, 29, 149, 0.12);
+            border-color: rgba(56, 189, 248, 0.4);
+            background: rgba(56, 189, 248, 0.12);
           }
           .x-telemetry-card.is-new {
             border-color: rgba(225, 29, 72, 0.6);
-            background: rgba(225, 29, 72, 0.12);
+            background: rgba(225, 29, 72, 0.14);
           }
           .x-telemetry-card.is-lost {
-            border-color: rgba(196, 181, 253, 0.4);
-            background: rgba(196, 181, 253, 0.08);
+            border-color: rgba(245, 158, 11, 0.4);
+            background: rgba(245, 158, 11, 0.12);
           }
           .x-telemetry-card.is-net {
             border-color: rgba(244, 244, 246, 0.3);
-            background: rgba(244, 244, 246, 0.05);
+            background: rgba(244, 244, 246, 0.06);
           }
           .x-card-label {
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: 700;
-            color: rgba(244, 244, 246, 0.6);
+            color: rgba(244, 244, 246, 0.65);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.05em;
           }
           .x-card-val {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             font-variant-numeric: tabular-nums;
           }
           .x-card-sub {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 8.5px;
-            color: rgba(244, 244, 246, 0.4);
+            font-size: 9px;
+            color: rgba(244, 244, 246, 0.5);
           }
           .x-threshold-slider-box {
-            background: rgba(8, 8, 12, 0.8);
+            background: rgba(8, 8, 12, 0.85);
             border: 1px solid rgba(244, 244, 246, 0.1);
-            border-radius: 8px;
-            padding: 8px 12px;
+            border-radius: 10px;
+            padding: 10px 14px;
             margin-bottom: 12px;
           }
           .x-slider-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
           }
           .x-slider-label {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: rgba(244, 244, 246, 0.8);
+            font-size: 11px;
+            color: rgba(244, 244, 246, 0.85);
           }
           .x-slider-presets {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
           }
           .x-preset-pill {
             background: rgba(244, 244, 246, 0.06);
             border: 1px solid rgba(244, 244, 246, 0.14);
-            color: rgba(244, 244, 246, 0.7);
+            color: rgba(244, 244, 246, 0.75);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
+            font-size: 9.5px;
             font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 4px;
+            height: 24px;
+            padding: 0 8px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.15s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
           }
           .x-preset-pill:hover {
             background: rgba(244, 244, 246, 0.14);
@@ -488,27 +526,27 @@ export default function RecordDetails({
             margin: 0;
           }
           .x-insar-math-card {
-            background: rgba(10, 10, 16, 0.8);
+            background: rgba(10, 10, 16, 0.85);
             border: 1px solid rgba(139, 92, 246, 0.25);
-            border-radius: 8px;
-            padding: 10px 12px;
-            margin-top: 6px;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 8px;
           }
           .x-insar-formula {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
+            font-size: 11.5px;
             font-weight: 700;
             color: #C4B5FD;
             background: rgba(139, 92, 246, 0.15);
-            padding: 5px 8px;
-            border-radius: 4px;
-            margin-bottom: 6px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
             border: 1px solid rgba(139, 92, 246, 0.3);
           }
           .x-insar-explanation {
-            font-size: 11px;
-            line-height: 1.5;
-            color: rgba(244, 244, 246, 0.7);
+            font-size: 11.5px;
+            line-height: 1.55;
+            color: rgba(244, 244, 246, 0.75);
             margin: 0;
           }
           .x-physics-box {
@@ -524,21 +562,48 @@ export default function RecordDetails({
           .x-physics-item {
             background: rgba(12, 12, 18, 0.6);
             border: 1px solid rgba(244, 244, 246, 0.08);
-            border-radius: 6px;
-            padding: 8px 10px;
+            border-radius: 8px;
+            padding: 9px 12px;
           }
           .x-physics-item strong {
             font-family: 'Space Grotesk', sans-serif;
-            font-size: 10.5px;
+            font-size: 11px;
             color: #F4F4F6;
             display: block;
-            margin-bottom: 3px;
+            margin-bottom: 4px;
           }
           .x-physics-item p {
-            font-size: 10.5px;
-            line-height: 1.45;
-            color: rgba(244, 244, 246, 0.65);
+            font-size: 11px;
+            line-height: 1.5;
+            color: rgba(244, 244, 246, 0.68);
             margin: 0;
+          }
+          .x-compare-actions-deck {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+          }
+          .x-compare-export-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+          .x-export-sub-btn {
+            flex: 1 1 140px;
+            min-width: 0;
+            white-space: nowrap;
+            justify-content: center;
+          }
+          @media (max-width: 1180px) {
+            .x-compare-studio {
+              grid-template-columns: 1fr;
+            }
+          }
+          @media (max-width: 500px) {
+            .x-telemetry-cards-grid {
+              grid-template-columns: 1fr;
+            }
           }
         `}</style>
 
@@ -553,8 +618,8 @@ export default function RecordDetails({
                 <DiamondCrosshair />
                 <span>
                   {stats.isCrossLocation
-                    ? '04 // DUAL-REGION COMPARATIVE SAR STUDY'
-                    : '04 // MULTI-TEMPORAL PAIR & EXPORT'}
+                    ? 'DUAL-REGION COMPARATIVE SAR STUDY'
+                    : 'MULTI-TEMPORAL PAIR & EXPORT'}
                 </span>
               </span>
               <h2 id="x-compare-pair-title">
@@ -609,7 +674,7 @@ export default function RecordDetails({
           </div>
 
           <div className="x-orbit-verify-banner">
-            <CheckCircle2 size={13} className="text-[#A78BFA] flex-shrink-0" />
+            <CheckCircle2 size={14} className="text-[#34D399] flex-shrink-0" />
             <span>
               {stats.isCrossLocation
                 ? `Dual-Region Analysis Active · ${stats.separationKm} km Separation`
@@ -617,22 +682,21 @@ export default function RecordDetails({
             </span>
           </div>
 
-          <div className="x-record-actions" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="x-compare-actions-deck">
             <button
               type="button"
-              className="x-link-button is-primary"
+              className="x-link-button is-primary w-full"
               onClick={handlePinChangeStudy}
               disabled={pinning}
             >
               <BookmarkPlus size={13} aria-hidden="true" />
-              <span>{pinning ? 'Pinning Study…' : 'Pin Change Study to Supabase'}</span>
+              <span>{pinning ? 'Saving Study…' : 'Pin Change Study to Database'}</span>
             </button>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="x-compare-export-row">
               <button
                 type="button"
-                className="x-link-button"
-                style={{ flex: 1 }}
+                className="x-link-button x-export-sub-btn"
                 onClick={handleDownloadReport}
                 title="Download formatted JSON report with all surface change statistics"
               >
@@ -642,8 +706,7 @@ export default function RecordDetails({
 
               <button
                 type="button"
-                className="x-link-button"
-                style={{ flex: 1 }}
+                className="x-link-button x-export-sub-btn"
                 onClick={handleDownloadMask}
                 title="Download transparent change mask PNG"
               >
@@ -654,8 +717,7 @@ export default function RecordDetails({
 
             <button
               type="button"
-              className="x-link-button"
-              style={{ opacity: 0.7 }}
+              className="x-link-button w-full opacity-80 hover:opacity-100"
               onClick={onExitCompare}
             >
               <span>Exit Multi-Temporal Compare</span>
@@ -672,7 +734,7 @@ export default function RecordDetails({
             <div>
               <span className="x-eyebrow">
                 <DiamondCrosshair />
-                <span>05 // THRESHOLD SENSITIVITY &amp; BIMODAL dB HISTOGRAM</span>
+                <span>THRESHOLD SENSITIVITY &amp; BIMODAL dB HISTOGRAM</span>
               </span>
               <h2 id="x-compare-telemetry-title">
                 {stats.isCrossLocation
@@ -690,7 +752,7 @@ export default function RecordDetails({
               <span className="x-card-label">
                 {stats.isCrossLocation ? 'Location A Water' : 'Permanent Water'}
               </span>
-              <strong className="x-card-val text-[#C4B5FD]">
+              <strong className="x-card-val text-[#38BDF8]">
                 {stats.isCrossLocation
                   ? `${stats.waterKm2A?.toFixed(2)} km²`
                   : `${stats.permanentWaterKm2.toFixed(2)} km²`}
@@ -718,7 +780,7 @@ export default function RecordDetails({
               <span className="x-card-label">
                 {stats.isCrossLocation ? 'Water Differential' : 'Water Lost / Receded'}
               </span>
-              <strong className="x-card-val text-[#DDD6FE]">
+              <strong className="x-card-val text-[#FBBF24]">
                 {stats.isCrossLocation
                   ? `${stats.netChangeKm2 > 0 ? '+' : ''}${stats.netChangeKm2.toFixed(2)} km²`
                   : `-${stats.waterLostKm2.toFixed(2)} km²`}
@@ -807,7 +869,7 @@ export default function RecordDetails({
           )}
         </section>
 
-        {/* COLUMN 3: 06 // INSAR COHERENCE, NOISE FLOOR & RADAR PHYSICS */}
+        {/* COLUMN 3: INSAR COHERENCE, NOISE FLOOR & RADAR PHYSICS */}
         <section
           className="explorer-panel x-qa-watchpoints-panel"
           aria-labelledby="x-physics-panel-title"
@@ -816,7 +878,7 @@ export default function RecordDetails({
             <div>
               <span className="x-eyebrow">
                 <DiamondCrosshair />
-                <span>06 // INSAR COHERENCE &amp; RADAR PHYSICS</span>
+                <span>INSAR COHERENCE &amp; RADAR PHYSICS</span>
               </span>
               <h2 id="x-physics-panel-title">Phase hygiene &amp; radar physics</h2>
             </div>
@@ -950,456 +1012,838 @@ export default function RecordDetails({
     : null;
 
   return (
-    <div className="x-inspection-deck">
-      {/* COLUMN 1: 04 // SELECTED RECORD METADATA & CLOUD ASSETS */}
-      <section
-        className="explorer-panel x-details"
-        aria-labelledby="x-details-title"
-      >
-        <div className="x-panel-heading">
-          <div>
-            <span className="x-eyebrow">
-              <DiamondCrosshair />
-              <span>04 // SELECTED RECORD</span>
-            </span>
-            <h2 id="x-details-title">Observation details</h2>
-          </div>
-          <span className="x-product-badge">
-            {valueOrDash(p.processingLevel ?? p.productType)}
+    <div className="x-inspection-deck-wrap">
+      <style>{`
+        .x-inspection-deck-wrap {
+          margin-top: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .x-deck-tabs-header {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 10px 16px;
+          border-radius: 14px;
+          background: rgba(12, 12, 18, 0.75);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.09);
+        }
+        .x-deck-title-group {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 0;
+        }
+        .x-deck-title-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 10px;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.85);
+          white-space: nowrap;
+        }
+        .x-deck-granule-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          max-width: 440px;
+          min-width: 0;
+          text-align: left;
+        }
+        .x-deck-granule-chip:hover {
+          background: rgba(255, 255, 255, 0.09);
+          border-color: rgba(251, 113, 133, 0.5);
+        }
+        .x-deck-granule-id {
+          font-family: "JetBrains Mono", monospace;
+          font-size: 11px;
+          color: rgba(244, 244, 246, 0.85);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .x-copied-badge {
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9px;
+          color: #FB7185;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .x-record-id-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin: 10px 0;
+          padding: 8px 12px;
+          border-radius: 8px;
+          background: rgba(4, 4, 6, 0.55);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .x-record-id-wrap:hover {
+          border-color: rgba(251, 113, 133, 0.45);
+          background: rgba(255, 255, 255, 0.04);
+        }
+        .x-record-id-wrap .x-record-id {
+          font-family: "JetBrains Mono", monospace;
+          font-size: 11px;
+          line-height: 1.45;
+          color: rgba(255, 255, 255, 0.9);
+          overflow-wrap: anywhere;
+          margin: 0;
+          padding: 0;
+          background: transparent;
+          border: none;
+        }
+        .x-record-id-action {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9.5px;
+          color: #FB7185;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          flex-shrink: 0;
+        }
+        .x-deck-tabs {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 6px;
+        }
+        .x-deck-tab {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(4, 4, 6, 0.6);
+          color: rgba(244, 244, 246, 0.7);
+          font-family: "JetBrains Mono", monospace;
+          font-size: 10px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .x-deck-tab:hover {
+          border-color: rgba(255, 255, 255, 0.25);
+          color: #FFFFFF;
+          background: rgba(255, 255, 255, 0.06);
+        }
+        .x-deck-tab.is-active {
+          border-color: rgba(251, 113, 133, 0.6);
+          background: linear-gradient(135deg, rgba(225, 29, 72, 0.25) 0%, rgba(190, 18, 60, 0.15) 100%);
+          color: #FFFFFF;
+          box-shadow: 0 0 12px rgba(225, 29, 72, 0.25);
+        }
+        .x-qa-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9.5px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          color: rgba(255, 255, 255, 0.88);
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .x-qa-pill.is-pass {
+          background: rgba(16, 185, 129, 0.16);
+          border: 1px solid rgba(52, 211, 153, 0.4);
+          color: #6EE7B7;
+        }
+        .x-browse-toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+        .x-pol-legend {
+          font-family: "JetBrains Mono", monospace;
+          font-size: 9.5px;
+          color: rgba(255, 255, 255, 0.65);
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .x-browse-stage {
+          position: relative;
+          flex: 1;
+          min-height: 240px;
+          max-height: 340px;
+          border-radius: 14px;
+          overflow: hidden;
+          background: radial-gradient(circle at center, rgba(225, 29, 72, 0.08), #040406 75%);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .x-browse-loading {
+          position: absolute;
+          inset: 0;
+          z-index: 2;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 24px;
+          text-align: center;
+          font-family: "JetBrains Mono", monospace;
+          font-size: 10.5px;
+          line-height: 1.5;
+          color: rgba(244, 244, 246, 0.85);
+          pointer-events: none;
+        }
+        .x-browse-loading span {
+          max-width: 320px;
+          display: block;
+        }
+        .x-deck-layout {
+          display: grid;
+          gap: 16px;
+          align-items: stretch;
+        }
+        .x-deck-layout.is-overview {
+          grid-template-columns: minmax(280px, 1fr) minmax(460px, 1.8fr) minmax(280px, 1fr);
+        }
+        .x-deck-layout.is-single {
+          grid-template-columns: 1fr;
+        }
+        @media (max-width: 1180px) {
+          .x-deck-layout.is-overview {
+            grid-template-columns: 1fr;
+          }
+        }
+        @media (max-width: 820px) {
+          .x-deck-tabs-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+            padding: 10px 12px;
+          }
+          .x-deck-title-group {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
+          }
+          .x-deck-granule-chip {
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: calc(100% - 150px);
+          }
+          .x-deck-granule-id {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .x-deck-tabs {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+          }
+          .x-deck-tab {
+            width: 100%;
+            justify-content: center;
+            padding: 0 8px;
+            font-size: 9.5px;
+            height: 32px;
+          }
+        }
+        @media (max-width: 520px) {
+          .x-deck-title-group {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+          }
+          .x-deck-granule-chip {
+            width: 100%;
+            max-width: 100%;
+          }
+          .x-deck-tabs {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+          }
+          .x-deck-tab {
+            font-size: 9px;
+            padding: 0 4px;
+            height: 30px;
+          }
+        }
+      `}</style>
+
+      {/* Interactive Workbench Tab Switcher */}
+      <div className="x-deck-tabs-header">
+        <div className="x-deck-title-group">
+          <span className="x-deck-title-tag">
+            <DiamondCrosshair />
+            <span>Inspection Workbench</span>
           </span>
+          <button
+            type="button"
+            className="x-deck-granule-chip"
+            onClick={copyGranuleId}
+            title="Click to copy full NISAR Granule ID"
+            aria-label="Copy full Granule ID"
+          >
+            <span className="x-deck-granule-id">{granule}</span>
+            <Copy size={11} className="shrink-0 opacity-70" />
+            {granuleCopied && <span className="x-copied-badge">Copied</span>}
+          </button>
         </div>
 
-        <p className="x-record-id" title={granule}>
-          {granule}
-        </p>
+        <div className="x-deck-tabs" role="tablist" aria-label="Inspection panels">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'overview'}
+            className={`x-deck-tab${activeTab === 'overview' ? ' is-active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+            title="Display all 3 inspection panels side-by-side"
+          >
+            <LayoutGrid size={11} aria-hidden="true" />
+            <span>Overview (3-Pane)</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'details'}
+            className={`x-deck-tab${activeTab === 'details' ? ' is-active' : ''}`}
+            onClick={() => setActiveTab('details')}
+            title="Focus on technical metadata and download assets"
+          >
+            <span>Metadata</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'imagery'}
+            className={`x-deck-tab${activeTab === 'imagery' ? ' is-active' : ''}`}
+            onClick={() => setActiveTab('imagery')}
+            title="Focus on SAR browse imagery viewer"
+          >
+            <span>SAR Browse</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'telemetry'}
+            className={`x-deck-tab${activeTab === 'telemetry' ? ' is-active' : ''}`}
+            onClick={() => setActiveTab('telemetry')}
+            title="Focus on QA verification checks and database watchpoints"
+          >
+            <span>QA &amp; Database</span>
+          </button>
+        </div>
+      </div>
 
-        <dl className="x-metadata">
-          {fields
-            .filter(([, value]) => value != null && value !== '')
-            .map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{valueOrDash(value)}</dd>
+      <div className={`x-deck-layout ${activeTab === 'overview' ? 'is-overview' : 'is-single'}`}>
+        {/* PANEL 1: SELECTED RECORD METADATA & CLOUD ASSETS */}
+        {(activeTab === 'overview' || activeTab === 'details') && (
+          <section
+            className="explorer-panel x-details"
+            aria-labelledby="x-details-title"
+          >
+            <div className="x-panel-heading">
+              <div>
+                <span className="x-eyebrow">
+                  <DiamondCrosshair />
+                  <span>SELECTED OBSERVATION RECORD</span>
+                </span>
+                <h2 id="x-details-title">Observation details</h2>
               </div>
-            ))}
-        </dl>
-
-        {/* Primary Earthdata Cloud, Supabase & ASF Actions */}
-        <div className="x-record-actions">
-          {externalUrl ? (
-            <>
-              <a
-                className="x-link-button"
-                href={proxyAssetUrl(externalUrl)}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Download HDF5 granule via Earthdata token proxy"
-              >
-                <Download size={13} aria-hidden="true" />
-                <span>
-                  Download HDF5 {sizeFormatted ? `(${sizeFormatted})` : ''}
-                </span>
-              </a>
-              <button
-                className="x-icon-button"
-                type="button"
-                onClick={copyLink}
-                aria-label="Copy ASF Cloud URL"
-                title="Copy ASF Cloud URL"
-              >
-                <Copy size={13} aria-hidden="true" />
-                <span>{copied ? 'Copied' : 'Copy URL'}</span>
-              </button>
-            </>
-          ) : isSme2Record ? (
-            <button
-              className="x-link-button"
-              type="button"
-              onClick={onFlyToSme2}
-            >
-              <Sparkles size={13} aria-hidden="true" />
-              <span>Focus 561-Pixel L3 Grid on Globe</span>
-            </button>
-          ) : (
-            <span className="x-disabled-link" aria-disabled="true">
-              <RadioTower size={13} aria-hidden="true" /> ASF URL unavailable
-              for this record
-            </span>
-          )}
-          {onPinWatchpoint && (
-            <button
-              className="x-icon-button"
-              type="button"
-              disabled={pinning || isPinned}
-              onClick={() => onPinWatchpoint(feature)}
-              title="Persist this observation as a Mission Watchpoint in Supabase Cloud"
-            >
-              <BookmarkPlus size={13} aria-hidden="true" />
-              <span>
-                {pinning
-                  ? 'Saving…'
-                  : isPinned
-                    ? 'Pinned in Supabase'
-                    : 'Pin to Supabase'}
+              <span className="x-product-badge">
+                {valueOrDash(p.processingLevel ?? p.productType)}
               </span>
-            </button>
-          )}
-        </div>
-
-        {/* Companion Cloud Assets (QA PDF, QA CSV, RunConfig YAML, ISO XML) */}
-        {(qaPdfUrl || qaCsvUrl || runConfigUrl || isoXmlUrl) && (
-          <div className="x-cloud-assets">
-            <span className="x-sub-eyebrow">
-              EARTHDATA CLOUD COMPANION ASSETS (AUTHENTICATED)
-            </span>
-            <div className="x-asset-chips">
-              {qaPdfUrl && (
-                <a
-                  href={proxyAssetUrl(qaPdfUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="x-asset-chip"
-                >
-                  <FileText size={11} aria-hidden="true" />
-                  <span>QA Report PDF</span>
-                  <ArrowUpRight size={10} aria-hidden="true" />
-                </a>
-              )}
-              {qaCsvUrl && (
-                <a
-                  href={proxyAssetUrl(qaCsvUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="x-asset-chip"
-                >
-                  <FileSpreadsheet size={11} aria-hidden="true" />
-                  <span>QA Summary CSV</span>
-                  <ArrowUpRight size={10} aria-hidden="true" />
-                </a>
-              )}
-              {runConfigUrl && (
-                <a
-                  href={proxyAssetUrl(runConfigUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="x-asset-chip"
-                >
-                  <FileCode2 size={11} aria-hidden="true" />
-                  <span>ISCE3 RunConfig YAML</span>
-                  <ArrowUpRight size={10} aria-hidden="true" />
-                </a>
-              )}
-              {isoXmlUrl && (
-                <a
-                  href={proxyAssetUrl(isoXmlUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="x-asset-chip"
-                >
-                  <FileCode2 size={11} aria-hidden="true" />
-                  <span>ISO 19115 XML</span>
-                  <ArrowUpRight size={10} aria-hidden="true" />
-                </a>
-              )}
             </div>
-          </div>
-        )}
-      </section>
 
-      {/* COLUMN 2: 05 // AUTHENTICATED NISAR SAR IMAGERY (OR L3 SME2 / SYNTHETIC PREVIEW) */}
-      {browseItems.length > 0 ? (
-        <section
-          className="explorer-panel x-browse-panel"
-          aria-label="Authenticated NISAR SAR browse imagery"
-        >
-          <div className="x-panel-heading">
-            <div>
-              <span className="x-eyebrow">
-                <DiamondCrosshair />
-                <span>05 // AUTHENTICATED NISAR SAR IMAGERY</span>
-              </span>
-              <h2>Real L-band radar browse</h2>
-            </div>
-            {onToggleDrapeRadar && (
-              <button
-                type="button"
-                className={`x-drape-btn${drapeRadarOnGlobe ? ' is-active' : ''}`}
-                onClick={onToggleDrapeRadar}
-                aria-pressed={drapeRadarOnGlobe}
-                title="Drape geocoded SAR browse raster directly over the 3D globe footprint"
-              >
-                <Layers size={11} aria-hidden="true" />
-                <span>
-                  {drapeRadarOnGlobe ? 'Draped on 3D Globe' : 'Drape on Globe'}
-                </span>
-              </button>
-            )}
-          </div>
-
-          {browseItems.length > 1 && (
             <div
-              className="x-browse-tabs"
-              role="tablist"
-              aria-label="SAR polarization and projection views"
+              className="x-record-id-wrap"
+              onClick={copyGranuleId}
+              title="Click to copy full NISAR Granule ID"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  copyGranuleId();
+                }
+              }}
             >
-              {browseItems.map((item, idx) => (
-                <button
-                  key={item.url}
-                  type="button"
-                  role="tab"
-                  aria-selected={selectedBrowseIdx === idx}
-                  className={`x-browse-tab${
-                    selectedBrowseIdx === idx ? ' is-active' : ''
-                  }`}
-                  onClick={() => {
-                    setSelectedBrowseIdx(idx);
-                    setBrowseLoaded(false);
-                    setBrowseError(false);
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="x-browse-stage">
-            {!browseLoaded && !browseError && (
-              <div className="x-browse-loading">
-                <Loader2 size={18} className="animate-spin text-[#A78BFA]" />
-                <span>
-                  Streaming authenticated SAR browse PNG via Supabase CDN &amp;
-                  NASA Earthdata Cloud…
-                </span>
-              </div>
-            )}
-            {browseError ? (
-              <div className="x-browse-loading">
-                <span>
-                  Browse preview failed to stream via proxy. Click below to open
-                  directly on Earthdata Cloud.
-                </span>
-              </div>
-            ) : (
-              <img
-                src={proxiedBrowseSrc}
-                alt={`NISAR ${p.processingLevel ?? 'SAR'} browse image for ${granule}`}
-                className={`x-browse-img${browseLoaded ? ' is-loaded' : ''}`}
-                onLoad={() => setBrowseLoaded(true)}
-                onError={() => setBrowseError(true)}
-              />
-            )}
-          </div>
-
-          <div className="x-browse-footer">
-            <span>
-              SOURCE: SUPABASE CDN + EARTHDATA · {activeBrowseItem?.label}
-            </span>
-            <a
-              href={proxiedBrowseSrc}
-              target="_blank"
-              rel="noreferrer"
-              className="x-browse-open"
-            >
-              <Eye size={11} aria-hidden="true" />
-              <span>Full PNG</span>
-            </a>
-          </div>
-        </section>
-      ) : isSme2Record ? (
-        <section
-          className="explorer-panel x-sme2-panel"
-          aria-label="Parsed L3 Soil Moisture EASE-Grid 2.0 telemetry"
-        >
-          <div className="x-panel-heading">
-            <div>
-              <span className="x-eyebrow">
-                <DiamondCrosshair />
-                <span>05 // PARSED HDF5 L3 SOIL MOISTURE (SME2)</span>
+              <p className="x-record-id">{granule}</p>
+              <span className="x-record-id-action">
+                <Copy size={11} />
+                <span>{granuleCopied ? 'Copied' : 'Copy'}</span>
               </span>
-              <h2>200m EASE-Grid 2.0 Telemetry</h2>
             </div>
-            <span className="x-product-badge">561 PIXELS</span>
-          </div>
-          <p className="x-helper-text">
-            Extracted directly from{' '}
-            <code className="text-white/85">nisar_sme2.json</code> · Volumetric
-            soil moisture (<code className="text-white/85">m³/m³</code>) across
-            Svalbard Arctic permafrost (Track 141, Frame 045).
-          </p>
-          <div className="x-sme2-stats">
-            <div>
-              <span>Min Moisture</span>
-              <strong>{(SME2_L3_DATASET.stats.min * 100).toFixed(1)}%</strong>
-              <small>{SME2_L3_DATASET.stats.min.toFixed(3)} m³/m³</small>
-            </div>
-            <div>
-              <span>Mean Moisture</span>
-              <strong className="text-[#A78BFA]">
-                {(SME2_L3_DATASET.stats.mean * 100).toFixed(1)}%
-              </strong>
-              <small>{SME2_L3_DATASET.stats.mean.toFixed(3)} m³/m³</small>
-            </div>
-            <div>
-              <span>Peak Moisture</span>
-              <strong className="text-[#FB7185]">
-                {(SME2_L3_DATASET.stats.max * 100).toFixed(1)}%
-              </strong>
-              <small>{SME2_L3_DATASET.stats.max.toFixed(3)} m³/m³</small>
-            </div>
-          </div>
-          <div className="x-record-actions" style={{ marginTop: '16px' }}>
-            <button
-              className="x-link-button"
-              type="button"
-              onClick={onFlyToSme2}
-            >
-              <Sparkles size={13} aria-hidden="true" />
-              <span>Fly 3D Camera to Svalbard 561-Pixel Grid</span>
-            </button>
-          </div>
-        </section>
-      ) : (
-        <SyntheticPreview />
-      )}
 
-      {/* COLUMN 3: 06 // LIVE QA TELEMETRY & SUPABASE CLOUD WATCHPOINTS */}
-      <section
-        className="explorer-panel x-qa-watchpoints-panel"
-        aria-label="Live NISAR QA telemetry and Supabase Cloud Watchpoints"
-      >
-        <div className="x-panel-heading">
-          <div>
-            <span className="x-eyebrow">
-              <DiamondCrosshair />
-              <span>06 // TELEMETRY &amp; SUPABASE CLOUD</span>
-            </span>
-            <h2>QA checks &amp; watchpoints</h2>
-          </div>
-          {qaStatus === 'ready' ? (
-            <span className="x-qa-pill is-pass">
-              <CheckCircle2 size={10} /> {qaRows.length} QA checks
-            </span>
-          ) : (
-            <span className="x-product-badge">
-              {watchpoints.length} SAVED
-            </span>
-          )}
-        </div>
-
-        {/* Live Authenticated QA Telemetry Table */}
-        {qaCsvUrl ? (
-          <div className="x-qa-box">
-            <div className="x-qa-header">
-              <span className="x-sub-eyebrow">
-                LIVE NISAR QA TELEMETRY · EARTHDATA CLOUD
-              </span>
-              {qaStatus === 'loading' && (
-                <span className="x-qa-pill">
-                  <Loader2 size={10} className="animate-spin" /> Fetching CSV…
-                </span>
-              )}
-            </div>
-            {qaStatus === 'ready' && qaRows.length > 0 && (
-              <div className="x-qa-list">
-                {qaRows.map((row, idx) => (
-                  <div key={`${row.check}-${idx}`} className="x-qa-row">
-                    <div>
-                      <strong>{row.description}</strong>
-                      <span>
-                        {row.dataset} · {row.value}
-                      </span>
-                    </div>
-                    <span
-                      className={`x-qa-badge ${
-                        row.result.toUpperCase() === 'PASS'
-                          ? 'is-pass'
-                          : 'is-warn'
-                      }`}
-                    >
-                      {row.result}
-                    </span>
+            <dl className="x-metadata" style={activeTab === 'details' ? { gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' } : undefined}>
+              {fields
+                .filter(([, value]) => value != null && value !== '')
+                .map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{valueOrDash(value)}</dd>
                   </div>
                 ))}
+            </dl>
+
+            {/* Primary Earthdata Cloud, Database & ASF Actions */}
+            <div className="x-record-actions">
+              {externalUrl ? (
+                <>
+                  <a
+                    className="x-link-button x-btn-primary"
+                    href={proxyAssetUrl(externalUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Download HDF5 granule via Earthdata token proxy"
+                  >
+                    <Download size={13} aria-hidden="true" />
+                    <span>
+                      Download HDF5 {sizeFormatted ? `(${sizeFormatted})` : ''}
+                    </span>
+                  </a>
+                  <button
+                    className="x-icon-button x-btn-secondary"
+                    type="button"
+                    onClick={copyLink}
+                    aria-label="Copy ASF Cloud URL"
+                    title="Copy ASF Cloud URL"
+                  >
+                    <Copy size={13} aria-hidden="true" />
+                    <span>{copied ? 'Copied' : 'Copy URL'}</span>
+                  </button>
+                </>
+              ) : isSme2Record ? (
+                <button
+                  className="x-link-button x-btn-primary"
+                  type="button"
+                  onClick={onFlyToSme2}
+                >
+                  <Sparkles size={13} aria-hidden="true" />
+                  <span>Focus 561-Pixel L3 Grid on Globe</span>
+                </button>
+              ) : (
+                <span className="x-disabled-link" aria-disabled="true">
+                  <RadioTower size={13} aria-hidden="true" /> ASF URL unavailable for this record
+                </span>
+              )}
+              {onPinWatchpoint && (
+                <button
+                  className="x-icon-button x-btn-ghost"
+                  type="button"
+                  disabled={pinning || isPinned}
+                  onClick={() => onPinWatchpoint(feature)}
+                  title="Persist this observation as a Mission Watchpoint in the database"
+                >
+                  <BookmarkPlus size={13} aria-hidden="true" />
+                  <span>
+                    {pinning
+                      ? 'Saving…'
+                      : isPinned
+                        ? 'Watchpoint Pinned'
+                        : 'Pin Watchpoint'}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Companion Cloud Assets (QA PDF, QA CSV, RunConfig YAML, ISO XML) */}
+            {(qaPdfUrl || qaCsvUrl || runConfigUrl || isoXmlUrl) && (
+              <div className="x-cloud-assets">
+                <span className="x-sub-eyebrow">
+                  AUTHENTICATED CLOUD ASSETS
+                </span>
+                <div className="x-asset-chips">
+                  {qaPdfUrl && (
+                    <a
+                      href={proxyAssetUrl(qaPdfUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="x-asset-chip"
+                    >
+                      <FileText size={11} aria-hidden="true" />
+                      <span>QA Report PDF</span>
+                      <ArrowUpRight size={10} aria-hidden="true" />
+                    </a>
+                  )}
+                  {qaCsvUrl && (
+                    <a
+                      href={proxyAssetUrl(qaCsvUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="x-asset-chip"
+                    >
+                      <FileSpreadsheet size={11} aria-hidden="true" />
+                      <span>QA Summary CSV</span>
+                      <ArrowUpRight size={10} aria-hidden="true" />
+                    </a>
+                  )}
+                  {runConfigUrl && (
+                    <a
+                      href={proxyAssetUrl(runConfigUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="x-asset-chip"
+                    >
+                      <FileCode2 size={11} aria-hidden="true" />
+                      <span>ISCE3 RunConfig YAML</span>
+                      <ArrowUpRight size={10} aria-hidden="true" />
+                    </a>
+                  )}
+                  {isoXmlUrl && (
+                    <a
+                      href={proxyAssetUrl(isoXmlUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="x-asset-chip"
+                    >
+                      <FileCode2 size={11} aria-hidden="true" />
+                      <span>ISO 19115 XML</span>
+                      <ArrowUpRight size={10} aria-hidden="true" />
+                    </a>
+                  )}
+                </div>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="x-qa-box">
-            <span className="x-sub-eyebrow">
-              QA TELEMETRY STATUS
-            </span>
-            <p className="x-helper-text" style={{ margin: 0 }}>
-              {isSme2Record
-                ? 'L3 Soil Moisture HDF5 quality flags verified: 561 valid land pixels extracted across Svalbard EASE-Grid 2.0.'
-                : 'Select any L1/L2 science product (GCOV, GUNW, GSLC, RSLC) to stream its live NASA Earthdata _QA_SUMMARY.csv verification checks.'}
-            </p>
-          </div>
+          </section>
         )}
 
-        {/* Supabase Cloud Watchpoints List */}
-        <div className="x-watchpoints-sub">
-          <div className="x-qa-header">
-            <span className="x-sub-eyebrow">
-              SUPABASE POSTGIS WATCHPOINTS (PUBLIC.MISSION_WATCHPOINTS)
-            </span>
-            <span className="x-qa-pill">
-              {watchpoints.length} synced
-            </span>
-          </div>
-          <div className="x-wp-list">
-            {watchpoints.map((wp) => {
-              const isActive =
-                activeId && wp.pinned_granule_id === activeId;
-              return (
-                <div
-                  key={wp.id}
-                  role="button"
-                  tabIndex={0}
-                  className={`x-wp-card${isActive ? ' is-active' : ''}`}
-                  onClick={() => onSelectWatchpoint?.(wp)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelectWatchpoint?.(wp);
-                    }
-                  }}
-                >
-                  <div className="x-wp-top">
-                    <span className="x-wp-title">
-                      <Bookmark
-                        size={10}
-                        className="inline mr-1.5 text-[#A78BFA]"
-                      />
-                      {wp.title}
-                    </span>
-                    {onDeleteWatchpoint && (
+        {/* PANEL 2: AUTHENTICATED NISAR SAR IMAGERY (OR L3 SME2 / SYNTHETIC PREVIEW) */}
+        {(activeTab === 'overview' || activeTab === 'imagery') && (
+          browseItems.length > 0 ? (
+            <section
+              className="explorer-panel x-browse-panel"
+              aria-label="Authenticated NISAR SAR browse imagery"
+            >
+              <div className="x-panel-heading">
+                <div>
+                  <span className="x-eyebrow">
+                    <DiamondCrosshair />
+                    <span>AUTHENTICATED SAR IMAGERY</span>
+                  </span>
+                  <h2>Real L-band radar browse</h2>
+                </div>
+              </div>
+
+              {browseItems.length > 1 && (
+                <div className="x-browse-toolbar">
+                  <div
+                    className="x-browse-tabs"
+                    role="tablist"
+                    aria-label="SAR polarization and projection views"
+                  >
+                    {browseItems.map((item, idx) => (
                       <button
+                        key={item.url}
                         type="button"
-                        className="x-wp-del"
-                        aria-label={`Remove ${wp.title} from Supabase`}
-                        title="Remove watchpoint from Supabase"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteWatchpoint(wp.id);
+                        role="tab"
+                        aria-selected={selectedBrowseIdx === idx}
+                        className={`x-browse-tab${
+                          selectedBrowseIdx === idx ? ' is-active' : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedBrowseIdx(idx);
+                          setBrowseLoaded(false);
+                          setBrowseError(false);
                         }}
                       >
-                        <Trash2 size={11} />
+                        {item.label}
                       </button>
+                    ))}
+                  </div>
+                  <div className="x-pol-legend" title="Radar Polarimetry: H = Horizontal, V = Vertical antenna transmission & reception">
+                    <span>H = Horizontal · V = Vertical</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="x-browse-stage" style={activeTab === 'imagery' ? { minHeight: '380px', maxHeight: '520px' } : undefined}>
+                {!browseLoaded && !browseError && (
+                  <div className="x-browse-loading">
+                    <Loader2 size={20} className="animate-spin text-[#FB7185]" />
+                    <span>
+                      Streaming authenticated SAR browse PNG via database CDN &amp;
+                      NASA Earthdata Cloud…
+                    </span>
+                  </div>
+                )}
+                {browseError ? (
+                  <div className="x-browse-loading">
+                    <span>
+                      Browse preview failed to stream via proxy. Click below to open
+                      directly on Earthdata Cloud.
+                    </span>
+                  </div>
+                ) : (
+                  <img
+                    src={proxiedBrowseSrc}
+                    alt={`NISAR ${p.processingLevel ?? 'SAR'} browse image for ${granule}`}
+                    className={`x-browse-img${browseLoaded ? ' is-loaded' : ''}`}
+                    onLoad={() => setBrowseLoaded(true)}
+                    onError={() => setBrowseError(true)}
+                    style={activeTab === 'imagery' ? { maxHeight: '500px' } : undefined}
+                  />
+                )}
+              </div>
+
+              <div className="x-browse-footer">
+                <span>
+                  SOURCE: DATABASE CDN + EARTHDATA · {activeBrowseItem?.label}
+                </span>
+                <a
+                  href={proxiedBrowseSrc}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="x-browse-open"
+                >
+                  <Eye size={12} aria-hidden="true" />
+                  <span>Open Full PNG</span>
+                </a>
+              </div>
+            </section>
+          ) : isSme2Record ? (
+            <section
+              className="explorer-panel x-sme2-panel"
+              aria-label="Parsed L3 Soil Moisture EASE-Grid 2.0 telemetry"
+            >
+              <div className="x-panel-heading">
+                <div>
+                  <span className="x-eyebrow">
+                    <DiamondCrosshair />
+                    <span>PARSED HDF5 L3 SOIL MOISTURE (SME2)</span>
+                  </span>
+                  <h2>200m EASE-Grid 2.0 Telemetry</h2>
+                </div>
+                <span className="x-product-badge">561 PIXELS</span>
+              </div>
+              <p className="x-helper-text">
+                Extracted directly from{' '}
+                <code className="text-white/85">nisar_sme2.json</code> · Volumetric
+                soil moisture (<code className="text-white/85">m³/m³</code>) across
+                Svalbard Arctic permafrost (Track 141, Frame 045).
+              </p>
+              <div className="x-sme2-stats">
+                <div>
+                  <span>Min Moisture</span>
+                  <strong>{(SME2_L3_DATASET.stats.min * 100).toFixed(1)}%</strong>
+                  <small>{SME2_L3_DATASET.stats.min.toFixed(3)} m³/m³</small>
+                </div>
+                <div>
+                  <span>Mean Moisture</span>
+                  <strong className="text-[#FDA4AF]">
+                    {(SME2_L3_DATASET.stats.mean * 100).toFixed(1)}%
+                  </strong>
+                  <small>{SME2_L3_DATASET.stats.mean.toFixed(3)} m³/m³</small>
+                </div>
+                <div>
+                  <span>Peak Moisture</span>
+                  <strong className="text-[#FB7185]">
+                    {(SME2_L3_DATASET.stats.max * 100).toFixed(1)}%
+                  </strong>
+                  <small>{SME2_L3_DATASET.stats.max.toFixed(3)} m³/m³</small>
+                </div>
+              </div>
+              <div className="x-record-actions" style={{ marginTop: '16px' }}>
+                <button
+                  className="x-link-button x-btn-primary"
+                  type="button"
+                  onClick={onFlyToSme2}
+                >
+                  <Sparkles size={13} aria-hidden="true" />
+                  <span>Fly 3D Camera to Svalbard 561-Pixel Grid</span>
+                </button>
+              </div>
+            </section>
+          ) : (
+            <SyntheticPreview />
+          )
+        )}
+
+        {/* PANEL 3: TELEMETRY & DATABASE WATCHPOINTS */}
+        {(activeTab === 'overview' || activeTab === 'telemetry') && (
+          <section
+            className="explorer-panel x-qa-watchpoints-panel"
+            aria-label="Live NISAR QA telemetry and Database Watchpoints"
+          >
+            <div className="x-panel-heading">
+              <div>
+                <span className="x-eyebrow">
+                  <DiamondCrosshair />
+                  <span>TELEMETRY &amp; DATABASE</span>
+                </span>
+                <h2>QA checks &amp; watchpoints</h2>
+              </div>
+              {qaStatus === 'ready' ? (
+                <span className="x-qa-pill is-pass">
+                  <CheckCircle2 size={10} /> {qaRows.length} QA checks
+                </span>
+              ) : (
+                <span className="x-product-badge">
+                  {watchpoints.length} SAVED
+                </span>
+              )}
+            </div>
+
+            <div style={activeTab === 'telemetry' ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' } : undefined}>
+              {/* Live Authenticated QA Telemetry Table */}
+              {qaCsvUrl ? (
+                <div className="x-qa-box">
+                  <div className="x-qa-header">
+                    <span className="x-sub-eyebrow">
+                      LIVE TELEMETRY · EARTHDATA CLOUD
+                    </span>
+                    {qaStatus === 'loading' && (
+                      <span className="x-qa-pill">
+                        <Loader2 size={10} className="animate-spin" /> Fetching CSV…
+                      </span>
                     )}
                   </div>
-                  <span className="x-wp-meta">
-                    {wp.product_type || 'SAR'} ·{' '}
-                    {Number(wp.latitude).toFixed(2)}°N,{' '}
-                    {Number(wp.longitude).toFixed(2)}°E · {wp.status}
-                  </span>
-                  {wp.notes && <p className="x-wp-notes">{wp.notes}</p>}
+                  {qaStatus === 'ready' && qaRows.length > 0 && (
+                    <div className="x-qa-list" style={activeTab === 'telemetry' ? { maxHeight: '300px' } : undefined}>
+                      {qaRows.map((row, idx) => (
+                        <div key={`${row.check}-${idx}`} className="x-qa-row">
+                          <div>
+                            <strong>{row.description}</strong>
+                            <span>
+                              {row.dataset} · {row.value}
+                            </span>
+                          </div>
+                          <span
+                            className={`x-qa-badge ${
+                              row.result.toUpperCase() === 'PASS'
+                                ? 'is-pass'
+                                : 'is-warn'
+                            }`}
+                          >
+                            {row.result}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+              ) : (
+                <div className="x-qa-box">
+                  <span className="x-sub-eyebrow">
+                    QA TELEMETRY STATUS
+                  </span>
+                  <p className="x-helper-text" style={{ margin: 0 }}>
+                    {isSme2Record
+                      ? 'L3 Soil Moisture HDF5 quality flags verified: 561 valid land pixels extracted across Svalbard EASE-Grid 2.0.'
+                      : 'Select any L1/L2 science product (GCOV, GUNW, GSLC, RSLC) to stream its live NASA Earthdata _QA_SUMMARY.csv verification checks.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Database Watchpoints List */}
+              <div className="x-watchpoints-sub" style={activeTab === 'telemetry' ? { borderTop: 'none', paddingTop: 0 } : undefined}>
+                <div className="x-qa-header">
+                  <span className="x-sub-eyebrow">
+                    MISSION WATCHPOINTS · DATABASE
+                  </span>
+                  <span className="x-qa-pill">
+                    {watchpoints.length} synced
+                  </span>
+                </div>
+                <div className="x-wp-list" style={activeTab === 'telemetry' ? { maxHeight: '300px' } : undefined}>
+                  {watchpoints.length === 0 ? (
+                    <p className="text-white/40 text-xs font-mono py-4 text-center">
+                      No watchpoints pinned yet. Click &quot;Pin Watchpoint&quot; on any record to save.
+                    </p>
+                  ) : (
+                    watchpoints.map((wp) => {
+                      const isActive =
+                        activeId && wp.pinned_granule_id === activeId;
+                      return (
+                        <div
+                          key={wp.id}
+                          role="button"
+                          tabIndex={0}
+                          className={`x-wp-card${isActive ? ' is-active' : ''}`}
+                          onClick={() => onSelectWatchpoint?.(wp)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSelectWatchpoint?.(wp);
+                            }
+                          }}
+                        >
+                          <div className="x-wp-top">
+                            <span className="x-wp-title">
+                              <Bookmark
+                                size={11}
+                                className="inline mr-1.5 text-[#A78BFA]"
+                              />
+                              {wp.title}
+                            </span>
+                            {onDeleteWatchpoint && (
+                              <button
+                                type="button"
+                                className="x-wp-del"
+                                aria-label={`Remove ${wp.title} from database`}
+                                title="Remove watchpoint from database"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteWatchpoint(wp.id);
+                                }}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                          <span className="x-wp-meta">
+                            {wp.product_type || 'SAR'} ·{' '}
+                            {Number(wp.latitude).toFixed(2)}°N,{' '}
+                            {Number(wp.longitude).toFixed(2)}°E · {wp.status}
+                          </span>
+                          {wp.notes && <p className="x-wp-notes">{wp.notes}</p>}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

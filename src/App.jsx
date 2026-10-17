@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  ArrowDown,
+  ArrowRight,
   ArrowUp,
   ArrowUpRight,
   Compass,
@@ -19,16 +21,17 @@ import {
   GlassButton,
 } from './components/ZenithElements';
 import { EarthHorizonVisual } from './components/EarthHorizonHero';
+import { RealEarthGlobe } from './components/RealEarthGlobe';
 import {
   SurfaceWaltzSection,
   WALTZ_PHENOMENA,
 } from './components/SurfaceWaltzCards';
 
 const NAV_SECTIONS = [
-  { id: 'welcome', index: '01', label: 'Welcome' },
-  { id: 'waltz', index: '02', label: 'The Waltz' },
-  { id: 'nisar', index: '03', label: 'NISAR Mission' },
-  { id: 'zenith', index: '04', label: 'Team Zenith' },
+  { id: 'welcome', index: '01', label: 'HOME' },
+  { id: 'waltz', index: '02', label: 'THE MISSION' },
+  { id: 'nisar', index: '03', label: 'NISAR' },
+  { id: 'zenith', index: '04', label: 'TEAM' },
 ];
 
 export default function App() {
@@ -131,339 +134,271 @@ export default function App() {
         }}
       />
 
-      {/* ================= SCROLL-SYNCED FROSTED TRANSLUCENT NAVBAR (MOBILE & DESKTOP RESPONSIVE) ================= */}
-      <header
-        className={`fixed top-0 inset-x-0 z-40 px-3 sm:px-8 transition-all duration-500 ${
-          isScrolled ? 'pt-2 sm:pt-3.5' : 'pt-3 sm:pt-6'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto">
-          <motion.nav
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className={`relative rounded-2xl px-3.5 sm:px-6 transition-all duration-500 backdrop-blur-2xl ${
-              isScrolled || mobileMenuOpen
-                ? 'py-2.5 bg-[#040406]/85 border border-white/[0.12] shadow-[0_16px_44px_rgba(0,0,0,0.85)]'
-                : 'py-3 sm:py-3.5 bg-[#040406]/50 border border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
-            }`}
+      {/* ================= FIXED TOP OBSERVATORY NAVBAR ================= */}
+      <header className="fixed top-0 inset-x-0 z-50 w-full bg-[#040406]/85 backdrop-blur-xl border-b border-white/[0.08] shadow-[0_4px_30px_rgba(0,0,0,0.65)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-12 h-16 flex items-center justify-between gap-4">
+          {/* Left: Minimal Vector Emblem + Team Zenith Brand Identity */}
+          <a
+            href="#welcome"
+            onClick={(e) => {
+              e.preventDefault();
+              scrollTo('welcome', 'welcome');
+            }}
+            className="flex items-center gap-2.5 sm:gap-3 group select-none cursor-pointer shrink-0"
           >
-            <div className="flex items-center justify-between gap-2">
-              {/* Left: Team Zenith Logo & Identity */}
-              <a
-                href="#welcome"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollTo('welcome', 'welcome');
-                }}
-                className="flex items-center gap-2.5 sm:gap-3.5 group min-w-0"
+            <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
+              <svg
+                viewBox="0 0 32 32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-6 h-6 sm:w-7 sm:h-7 text-white"
               >
-                <div
-                  className={`relative shrink-0 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center overflow-hidden group-hover:border-white/25 transition-all duration-300 ${
-                    isScrolled ? 'w-8 h-8 sm:w-9 sm:h-9' : 'w-9 h-9 sm:w-10 sm:h-10'
+                <path
+                  d="M 5 22 A 11 11 0 0 1 27 22"
+                  stroke="#FFFFFF"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="16"
+                  y1="5"
+                  x2="16"
+                  y2="27"
+                  stroke="#FFFFFF"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+
+            <div className="flex flex-col text-left">
+              <span className="font-mono text-xs font-bold tracking-[0.22em] uppercase text-white leading-tight">
+                TEAM ZENITH
+              </span>
+              <span className="font-mono text-[8.5px] sm:text-[9px] tracking-[0.18em] uppercase text-white/45 leading-tight mt-0.5">
+                NASA SPACE APPS 2026
+              </span>
+            </div>
+          </a>
+
+          {/* Center: Desktop Navigation Links with Numeric Prefixes & Active Crimson Underline */}
+          <div className="hidden lg:flex items-center gap-8 xl:gap-11 font-mono text-[11px] tracking-[0.2em] uppercase">
+            {NAV_SECTIONS.map((tab) => {
+              const isActive = activeNav === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => scrollTo(tab.id, tab.id)}
+                  className={`relative py-1 cursor-pointer transition-colors duration-200 select-none ${
+                    isActive
+                      ? 'text-white font-medium'
+                      : 'text-white/45 hover:text-white/80'
                   }`}
                 >
-                  <img
-                    src="/zenith-logo.png"
-                    alt="Team Zenith Logo"
-                    className="w-6 h-6 sm:w-7 sm:h-7 object-contain mix-blend-screen"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-display text-[11px] sm:text-sm font-semibold tracking-[0.2em] sm:tracking-[0.28em] uppercase text-white truncate">
-                    TEAM ZENITH
-                  </div>
-                  <div className="font-mono text-[8px] sm:text-[9px] tracking-[0.14em] sm:tracking-[0.18em] uppercase text-white/45 flex items-center gap-1.5 truncate">
-                    <span className="truncate">NASA SPACE APPS 2026</span>
-                    <span className="hidden sm:inline-block text-white/25">·</span>
-                    <span className="hidden sm:inline-block text-white/70">
-                      {activeSectionObj.index} / 04
-                    </span>
-                  </div>
-                </div>
-              </a>
+                  <span className="opacity-40 mr-2 text-[10px]">{tab.index}</span>
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <motion.span
+                      layoutId="activeNavUnderline"
+                      className="absolute -bottom-1 inset-x-0 h-[2px] bg-[#E11D48] shadow-[0_0_8px_#E11D48]"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-              {/* Center: Scroll-Synced Minimalist Navigation Links (Desktop lg+) */}
-              <div className="hidden lg:flex items-center gap-1 p-1 rounded-full bg-black/40 border border-white/[0.08]">
+          {/* Right: Dashboard CTA Button With Pulsing Red Beacon + ArrowUpRight */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <a
+              href="/dashboard"
+              className="group inline-flex items-center gap-2.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full border border-white/15 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/30 text-white font-mono text-[9.5px] sm:text-[10px] tracking-[0.16em] uppercase font-medium transition-all duration-200 shadow-sm select-none whitespace-nowrap"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#E11D48] shadow-[0_0_8px_#E11D48] animate-pulse shrink-0" />
+              <span>Dashboard</span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-white/70 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+            </a>
+
+            {/* Mobile Menu Hamburger (< lg) */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              className="lg:hidden w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 flex items-center justify-center text-white/80 transition-all active:scale-95 shrink-0"
+            >
+              {mobileMenuOpen ? (
+                <X className="w-4 h-4 text-white" />
+              ) : (
+                <Menu className="w-4 h-4 text-white" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile & Tablet Expandable Drawer */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="lg:hidden w-full overflow-hidden px-4 pb-3 pt-1 border-t border-white/[0.08] bg-[#040406]"
+            >
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {NAV_SECTIONS.map((tab) => {
                   const isActive = activeNav === tab.id;
                   return (
                     <button
                       key={tab.id}
-                      type="button"
                       onClick={() => scrollTo(tab.id, tab.id)}
-                      className={`relative px-4 py-1.5 rounded-full text-xs font-mono tracking-[0.16em] uppercase transition-colors ${
+                      className={`px-3 py-2 rounded-xl font-mono text-[10px] tracking-[0.16em] uppercase flex items-center justify-between transition-all ${
                         isActive
-                          ? 'text-white'
-                          : 'text-white/45 hover:text-white/85'
+                          ? 'bg-white/[0.12] border border-white/25 text-white shadow-sm'
+                          : 'bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] text-white/60'
                       }`}
                     >
-                      {isActive && (
-                        <motion.span
-                          layoutId="navPillIndicator"
-                          transition={{
-                            type: 'spring',
-                            stiffness: 380,
-                            damping: 30,
-                          }}
-                          className="absolute inset-0 rounded-full bg-white/[0.11] border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
-                        />
-                      )}
-                      <span className="relative z-10 flex items-center gap-1.5">
-                        <span
-                          className={`text-[9px] transition-opacity ${
-                            isActive ? 'opacity-80' : 'opacity-35'
-                          }`}
-                        >
-                          {tab.index}
-                        </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="opacity-40">{tab.index}</span>
                         <span>{tab.label}</span>
-                      </span>
+                      </div>
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] shrink-0" />
+                      )}
                     </button>
                   );
                 })}
               </div>
-
-              {/* Right: Desktop Glass CTA + Mobile/Tablet Section Pill & Hamburger Toggle */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="hidden sm:block">
-                  <GlassButton
-                    href="/dashboard"
-                    variant="primary"
-                    icon={ArrowUpRight}
-                  >
-                    Field Console
-                  </GlassButton>
-                </div>
-
-                {/* Mobile & Tablet Interactive Menu Trigger (< lg) */}
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen((prev) => !prev)}
-                  aria-label="Toggle navigation menu"
-                  aria-expanded={mobileMenuOpen}
-                  className="lg:hidden inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.11] border border-white/15 text-white transition-all active:scale-95"
-                >
-                  <span className="font-mono text-[9px] tracking-[0.16em] uppercase text-white/85">
-                    {activeSectionObj.index} · {activeSectionObj.label}
-                  </span>
-                  {mobileMenuOpen ? (
-                    <X className="w-4 h-4 text-white/90" />
-                  ) : (
-                    <Menu className="w-4 h-4 text-white/90" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile & Tablet Expandable Frosted Glass Drawer (< lg) */}
-            <AnimatePresence>
-              {mobileMenuOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                  className="lg:hidden overflow-hidden"
-                >
-                  <div className="pt-3 mt-3 border-t border-white/[0.08] flex flex-col gap-1.5">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {NAV_SECTIONS.map((tab) => {
-                        const isActive = activeNav === tab.id;
-                        return (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => scrollTo(tab.id, tab.id)}
-                            className={`px-3.5 py-2.5 rounded-xl font-mono text-[10px] tracking-[0.16em] uppercase flex items-center justify-between transition-all ${
-                              isActive
-                                ? 'bg-white/[0.12] border border-white/25 text-white shadow-sm'
-                                : 'bg-white/[0.03] border border-white/[0.06] text-white/55 hover:text-white'
-                            }`}
-                          >
-                            <span className="flex items-center gap-2 truncate">
-                              <span className="text-white/40">{tab.index}</span>
-                              <span className="truncate">{tab.label}</span>
-                            </span>
-                            {isActive && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="pt-1.5">
-                      <a
-                        href="/dashboard"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="glass-cta flex w-full items-center justify-center gap-2.5 rounded-xl px-4 py-3 font-mono text-[10px] tracking-[0.22em] uppercase font-medium text-white"
-                      >
-                        <Radar className="h-3.5 w-3.5 text-[#FB7185]" aria-hidden="true" />
-                        Open NISAR Field Console
-                        <ArrowUpRight className="h-3.5 w-3.5 opacity-80" aria-hidden="true" />
-                      </a>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.nav>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      {/* ================= HERO SECTION (FULL VIEWPORT ABOVE THE FOLD) ================= */}
+      {/* ================= HERO SECTION (FULL BLEED, UNBOXED, BALANCED VERTICAL FIT) ================= */}
       <main
         id="welcome"
-        className="relative z-10 pt-28 sm:pt-32 pb-6 px-4 sm:px-8 lg:h-screen lg:max-h-[980px] flex flex-col justify-center"
+        onMouseMove={handleHeroMouseMove}
+        className="relative z-10 w-full min-h-screen lg:h-screen lg:max-h-[980px] pt-28 sm:pt-32 lg:pt-28 xl:pt-32 pb-6 sm:pb-8 px-4 sm:px-8 lg:px-12 flex flex-col items-center justify-start lg:justify-between overflow-hidden"
       >
+        {/* Subtle Ambient Cosmic Glow */}
         <div
-          onMouseMove={handleHeroMouseMove}
-          className="max-w-7xl w-full mx-auto h-full relative border border-white/[0.08] rounded-3xl bg-gradient-to-b from-white/[0.02] via-transparent to-white/[0.015] px-5 py-5 sm:px-9 sm:py-6 lg:px-12 lg:py-6 flex flex-col justify-between overflow-hidden"
+          className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[500px] rounded-full blur-[150px]"
+          style={{
+            background:
+              'radial-gradient(circle, rgba(225,29,72,0.14) 0%, rgba(37,99,235,0.13) 45%, rgba(139,92,246,0.06) 70%, transparent 85%)',
+          }}
+        />
+
+        {/* 1. CENTER TITLE BLOCK */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+          className="relative z-20 text-center mb-1 sm:mb-2 lg:mb-3 shrink-0"
         >
-          {/* Architectural Center Grid Hairlines (Inspired by Pinterest Reference 1) */}
-          <div className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-white/[0.045]" />
-          <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-white/[0.045]" />
+          {/* Mission Eyebrow */}
+          <span className="font-mono text-[9.5px] sm:text-[10px] tracking-[0.34em] uppercase text-white/60 block mb-2 sm:mb-2.5">
+            NASA-ISRO JOINT EARTH SYSTEM MISSION
+          </span>
 
-          {/* TOP BAR: Combined Poetic Whisper + Center Zenith Emblem Badge + Space Apps Pill */}
-          <div className="relative z-20 grid grid-cols-1 md:grid-cols-12 gap-4 pb-4 border-b border-white/[0.06] items-center">
-            {/* Left Whisper */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="md:col-span-5 flex items-center gap-4"
-            >
-              <DotGridMark className="hidden sm:grid shrink-0" />
-              <p className="font-sans text-sm sm:text-base font-light text-white/45 leading-snug">
-                Let’s{' '}
-                <span className="text-white font-normal">
-                  decode the Earth
-                </span>{' '}
-                <span className="text-white/90 font-normal">together.</span>
-              </p>
-            </motion.div>
+          {/* Primary Headline with Bold SAR Accent */}
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-[46px] xl:text-[52px] tracking-[0.06em] uppercase text-white leading-tight">
+            <span className="font-light">DANCING WITH </span>
+            <span className="font-black">SAR</span>
+          </h1>
 
-            {/* Center Architectural Emblem Badge (From Reference 1 "ASTRONAUTS") */}
-            <div className="hidden md:flex md:col-span-2 justify-center">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/15 flex items-center justify-center shadow-inner">
-                <ZenithEmblem className="w-5 h-5" />
-              </div>
-            </div>
+          {/* Centered Crimson Accent Bar */}
+          <div className="w-12 h-[2.5px] bg-[#E11D48] shadow-[0_0_10px_#E11D48] mx-auto mt-2 mb-2.5" />
 
-            {/* Right Whisper + Space Apps 2026 Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="md:col-span-5 flex items-center justify-between md:justify-end gap-4"
-            >
-              <p className="hidden xl:block font-mono text-[10px] leading-snug text-white/45 text-right">
-                Look deep into radar waves, and understand{' '}
-                <span className="text-white/80">every surface shift.</span>
-              </p>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full frosted-glass-pill shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] animate-pulse" />
-                <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/80">
-                  SPACE APPS 2026
-                </span>
-              </div>
-              <DotGridMark className="hidden sm:grid shrink-0" />
-            </motion.div>
+          {/* Subtitle */}
+          <p className="font-sans text-xs sm:text-[13px] text-white/65 max-w-xl mx-auto font-light leading-relaxed">
+            Discover how radar reveals millimeter-scale changes on Earth’s surface —
+            <br className="hidden sm:inline" />
+            penetrating clouds, smoke, and polar night.
+          </p>
+        </motion.div>
+
+        {/* 2. CENTER 3-COLUMN VISUAL STAGE WITH REAL THREE.JS GLOBE (EXPANSIVE & UNCLIPPED) */}
+        <div className="relative z-20 flex-1 flex flex-col lg:flex-row items-center justify-between w-full max-w-[1540px] mx-auto px-4 sm:px-8 xl:px-14 gap-6 lg:gap-2 min-h-0">
+          {/* Left Column: FROM Sense */}
+          <motion.div
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.75, delay: 0.15 }}
+            className="w-full lg:w-[250px] xl:w-[280px] shrink-0 flex flex-col items-center lg:items-start text-center lg:text-left order-2 lg:order-1"
+          >
+            <span className="font-mono text-[10.5px] tracking-[0.28em] text-white/45 uppercase mb-1">
+              FROM
+            </span>
+            <h2 className="font-display text-4xl sm:text-5xl lg:text-[56px] xl:text-[62px] font-bold text-white tracking-tight leading-none">
+              Sense
+            </h2>
+            <div className="w-8 h-[2.5px] bg-[#E11D48] shadow-[0_0_8px_#E11D48] mt-3 mb-3.5" />
+            <p className="font-mono text-[9px] sm:text-[9.5px] tracking-[0.22em] text-white/50 uppercase leading-relaxed max-w-[220px]">
+              TRACKING A CHANGING PLANET
+              <br />
+              THROUGH RADAR WAVES.
+            </p>
+          </motion.div>
+
+          {/* Center Column: Real Three.js 3D Earth Globe (Generous Unclipped Horizontal Width) */}
+          <div className="w-full flex-1 max-w-[780px] flex items-center justify-center order-1 lg:order-2 overflow-visible">
+            <RealEarthGlobe mouseOffset={mouseOffset} />
           </div>
 
-          {/* CENTER STAGE: Clean Title + Spacious Planetary Horizon */}
-          <div className="relative z-20 my-auto py-4 flex flex-col items-center justify-center">
-            {/* Wide-Tracked Geometric Challenge Header */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="text-center relative z-20 mb-2 sm:mb-4"
-            >
-              <div className="inline-block relative">
-                <span className="font-mono text-[9px] sm:text-[10px] tracking-[0.38em] uppercase text-white/45 block mb-2">
-                  NASA — ISRO SYNTHETIC APERTURE RADAR MISSION
-                </span>
-                <h1 className="font-display text-xl sm:text-3xl md:text-4xl lg:text-[42px] font-light tracking-[0.28em] sm:tracking-[0.38em] uppercase text-white pl-[0.28em] leading-none">
-                  DANCING WITH THE SARS
-                </h1>
-                {/* Signature Minimalist Double Bar under lead letter (From Reference 1) */}
-                <div className="mt-2.5 flex items-center justify-center sm:justify-start gap-2 pl-1">
-                  <span className="w-2.5 h-[1.5px] bg-white/80" />
-                  <span className="w-7 h-[1.5px] bg-white/80" />
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Centerpiece Planetary Horizon + Split Typography ("Learn by Exploring." Homage) */}
-            <div className="relative w-full flex flex-col lg:flex-row items-center justify-center">
-              {/* Left Word */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.75, delay: 0.2 }}
-                className="lg:w-1/3 flex lg:justify-end lg:pr-8 z-20 text-center lg:text-right"
-              >
-                <span className="font-display text-4xl sm:text-5xl xl:text-6xl font-semibold tracking-tight text-white">
-                  Sense
-                </span>
-              </motion.div>
-
-              {/* Center Glowing Earth Crescent & Poetic Verse */}
-              <div className="lg:w-1/3 w-full z-10">
-                <EarthHorizonVisual
-                  activePhenomenon={activePhenomenon}
-                  mouseOffset={mouseOffset}
-                />
-              </div>
-
-              {/* Right Phrase */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.75, delay: 0.25 }}
-                className="lg:w-1/3 flex lg:justify-start lg:pl-8 z-20 text-center lg:text-left"
-              >
-                <span className="font-display text-4xl sm:text-5xl xl:text-6xl font-semibold tracking-tight text-white">
-                  by Exploring.
-                </span>
-              </motion.div>
-            </div>
-          </div>
-
-          {/* BOTTOM ARCHITECTURAL BAR (Direct Homage to Reference 1: Left Micro-Note, Center CTA, Right Telemetry) */}
-          <div className="relative z-20 pt-5 border-t border-white/[0.06] grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-            {/* Left: 010 // TEAM ZENITH Micro Editorial Note */}
-            <div className="md:col-span-4 flex items-start gap-3">
-              <span className="writing-vertical font-mono text-[9px] tracking-[0.25em] text-white/60 h-8 shrink-0">
-                010
+          {/* Right Column: TO by Exploring. */}
+          <motion.div
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.75, delay: 0.2 }}
+            className="w-full lg:w-[250px] xl:w-[280px] shrink-0 flex flex-col items-center lg:items-start text-center lg:text-left order-3"
+          >
+            <div className="flex items-center gap-2.5 w-full max-w-[200px] justify-center lg:justify-start mb-1">
+              <span className="font-mono text-[10.5px] tracking-[0.28em] text-white/45 uppercase shrink-0">
+                TO
               </span>
-              <p className="text-[11px] text-white/45 font-light leading-relaxed max-w-xs">
-                Tracking wetland loss, wildfires, earthquakes, farming, and
-                glaciers with{' '}
-                <span className="text-white/80 font-normal">Team Zenith</span>.
-              </p>
+              <div className="h-px bg-white/20 flex-1" />
             </div>
+            <h2 className="font-display text-4xl sm:text-5xl lg:text-[56px] xl:text-[62px] font-bold text-white tracking-tight leading-tight">
+              by
+              <br />
+              Exploring.
+            </h2>
+            <div className="w-8 h-[2.5px] bg-[#E11D48] shadow-[0_0_8px_#E11D48] mt-3.5 mb-4" />
+            <p className="font-mono text-[9px] sm:text-[9.5px] tracking-[0.22em] text-white/50 uppercase leading-relaxed max-w-[220px]">
+              TURNING SURFACE SIGNALS
+              <br />
+              INTO REAL-WORLD INSIGHTS.
+            </p>
 
-            {/* Center: Clean Glass-Effect CTA */}
-            <div className="md:col-span-4 flex justify-center">
-              <GlassButton
+            {/* Primary & Secondary Hero CTAs (Vertical Stack) */}
+            <div className="mt-5 flex flex-col items-center lg:items-start gap-2.5 w-full max-w-[260px] xl:max-w-[280px]">
+              <a
                 href="/dashboard"
-                variant="primary"
-                compartment
-                icon={ArrowUpRight}
+                className="group w-full inline-flex items-center justify-between px-4 sm:px-5 py-3 rounded-full bg-[#E11D48] hover:bg-[#F43F5E] text-white transition-all shadow-[0_0_20px_rgba(225,29,72,0.4)] hover:shadow-[0_0_26px_rgba(225,29,72,0.6)] active:scale-98 select-none"
               >
-                NISAR Data
-              </GlassButton>
-            </div>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-white shrink-0 animate-pulse" />
+                  <span className="font-mono text-[11px] font-bold tracking-[0.08em] uppercase text-white whitespace-nowrap">
+                    Launch Dashboard
+                  </span>
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-white shrink-0 ml-2 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </a>
 
-            {/* Right: Minimalist Telemetry Signature & Dot Grid */}
-            <div className="md:col-span-4 flex items-center justify-between md:justify-end gap-4 text-[9px] font-mono tracking-[0.22em] uppercase text-white/40">
-              <span>NISAR // L-BAND & S-BAND SAR</span>
-              <DotGridMark />
+              <button
+                type="button"
+                onClick={() => scrollTo('waltz', 'waltz')}
+                className="group w-full inline-flex items-center justify-between px-4 sm:px-5 py-3 rounded-full border border-white/20 hover:border-white/40 bg-white/[0.04] hover:bg-white/[0.08] text-white/85 hover:text-white transition-all select-none"
+              >
+                <span className="font-mono text-[11px] font-bold tracking-[0.08em] uppercase whitespace-nowrap">
+                  Explore Phenomena
+                </span>
+                <ArrowDown className="w-3.5 h-3.5 text-white/60 group-hover:text-white shrink-0 ml-2 transition-transform group-hover:translate-y-0.5" />
+              </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       </main>
 
@@ -502,17 +437,10 @@ export default function App() {
 
               {/* Editorial Vertical & Horizontal Layout from Reference 1 ("JOHN GLENN / PROJECT MERCURY") */}
               <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-start justify-between">
-                <div className="flex gap-6 sm:gap-8 items-start max-w-2xl">
-                  <div className="hidden sm:flex flex-col items-center pt-1">
-                    <span className="writing-vertical font-display text-xs tracking-[0.3em] uppercase text-white/70 font-semibold">
-                      NISAR SAR
-                    </span>
-                    <span className="w-px h-20 bg-white/15 mt-3" />
-                  </div>
-
+                <div className="max-w-2xl">
                   <div>
                     <span className="font-mono text-[10px] tracking-[0.24em] uppercase text-white/45 block mb-2">
-                      NASA — ISRO JOINT EARTH SYSTEM MISSION
+                      NASA-ISRO JOINT EARTH SYSTEM MISSION
                     </span>
                     <h2 className="font-display text-2xl sm:text-4xl font-light text-white tracking-tight">
                       Seeing Through Clouds, Canopy,{' '}
@@ -531,7 +459,7 @@ export default function App() {
                 </div>
 
                 {/* Minimalist Frosted Spec Pills */}
-                <div className="w-full lg:w-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-3 min-w-[230px]">
+                <div className="w-full lg:w-auto grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 min-w-[230px]">
                   {[
                     { label: 'L-BAND RADAR (NASA)', value: '24 cm λ' },
                     { label: 'S-BAND RADAR (ISRO)', value: '10 cm λ' },
@@ -541,10 +469,10 @@ export default function App() {
                       key={stat.label}
                       className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between gap-4"
                     >
-                      <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-white/45">
+                      <span className="font-mono text-[9.5px] sm:text-[9px] tracking-[0.2em] uppercase text-white/50">
                         {stat.label}
                       </span>
-                      <span className="font-display text-base sm:text-lg font-medium text-white">
+                      <span className="font-display text-base sm:text-lg font-medium text-white shrink-0">
                         {stat.value}
                       </span>
                     </div>
@@ -556,10 +484,11 @@ export default function App() {
             {/* Bottom "S P A C E" Architectural Signature (Directly from Reference 1) */}
             <div className="mt-10 pt-6 border-t border-white/[0.08] flex flex-wrap items-end justify-between gap-4">
               <div>
-                <div className="font-display text-2xl sm:text-3xl tracking-[0.45em] uppercase text-white font-light">
+                <span className="sr-only">Space Segment Remote Sensing Instrument</span>
+                <div aria-hidden="true" className="font-display text-2xl sm:text-3xl tracking-[0.45em] uppercase text-white font-light">
                   S P A C E
                 </div>
-                <div className="mt-1.5 flex items-center gap-1.5">
+                <div aria-hidden="true" className="mt-1.5 flex items-center gap-1.5">
                   <span className="w-6 h-[2px] bg-white/80" />
                   <span className="w-2 h-[2px] bg-white/80" />
                 </div>
@@ -569,8 +498,9 @@ export default function App() {
                 onClick={() => setWelcomeModalOpen(true)}
                 variant="secondary"
                 compartment
+                icon={ArrowUpRight}
               >
-                Explore More
+                Mission Specifications
               </GlassButton>
             </div>
           </FrostedCard>
@@ -580,7 +510,7 @@ export default function App() {
       {/* ================= SECTION 04: "E A R T H" — TEAM ZENITH IDENTITY & LOGO ================= */}
       <section
         id="zenith"
-        className="relative z-10 py-16 sm:py-24 px-4 sm:px-8 max-w-7xl mx-auto"
+        className="relative z-10 py-12 sm:py-16 px-4 sm:px-8 max-w-7xl mx-auto"
       >
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -648,22 +578,15 @@ export default function App() {
                 {/* Bottom "E A R T H" Architectural Signature (Directly from Reference 1) */}
                 <div className="mt-10 pt-6 border-t border-white/[0.08] flex flex-wrap items-end justify-between gap-4">
                   <div>
-                    <div className="font-display text-2xl sm:text-3xl tracking-[0.45em] uppercase text-white font-light">
+                    <span className="sr-only">Earth Observation Target</span>
+                    <div aria-hidden="true" className="font-display text-2xl sm:text-3xl tracking-[0.45em] uppercase text-white font-light">
                       E A R T H
                     </div>
-                    <div className="mt-1.5 flex items-center gap-1.5">
+                    <div aria-hidden="true" className="mt-1.5 flex items-center gap-1.5">
                       <span className="w-6 h-[2px] bg-white/80" />
                       <span className="w-2 h-[2px] bg-white/80" />
                     </div>
                   </div>
-
-                  <GlassButton
-                    onClick={() => scrollTo('waltz', 'waltz')}
-                    variant="primary"
-                    compartment
-                  >
-                    Enter the Waltz
-                  </GlassButton>
                 </div>
               </div>
             </div>
@@ -672,17 +595,16 @@ export default function App() {
       </section>
 
       {/* ================= MINIMALIST FOOTER ================= */}
-      <footer className="relative z-10 mt-12 border-t border-white/[0.07] py-10 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+      <footer className="relative z-10 mt-8 border-t border-white/[0.07] py-8 px-4 sm:px-8">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <img
               src="/zenith-logo.png"
               alt="Team Zenith"
               className="w-7 h-7 object-contain mix-blend-screen"
             />
-            <span className="font-mono text-[11px] tracking-[0.22em] uppercase text-white/60">
-              TEAM ZENITH · NASA SPACE APPS CHALLENGE 2026 · DANCING WITH THE
-              SARS
+            <span className="font-mono text-[10.5px] tracking-[0.2em] uppercase text-white/60 text-center sm:text-left">
+              TEAM ZENITH · NASA SPACE APPS CHALLENGE 2026 · DANCING WITH THE SARS
             </span>
           </div>
 
@@ -690,6 +612,7 @@ export default function App() {
             onClick={() => scrollTo('welcome', 'welcome')}
             variant="secondary"
             icon={ArrowUp}
+            className="w-full sm:w-auto justify-center"
           >
             Back to Top
           </GlassButton>
@@ -727,7 +650,7 @@ export default function App() {
                       NASA SPACE APPS CHALLENGE 2026
                     </span>
                     <h3 className="font-display text-lg font-medium text-white">
-                      Dancing with the SARs — Mission Brief
+                      Dancing with SAR — Mission Brief
                     </h3>
                   </div>
                 </div>

@@ -11,15 +11,15 @@ import {
 
 function formatDate(val) {
   if (!val) return 'Date unavailable';
+  const str = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    return str.slice(0, 10);
+  }
   try {
-    return new Intl.DateTimeFormat('en', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'UTC',
-    }).format(new Date(`${val}T00:00:00Z`));
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? str : d.toISOString().slice(0, 10);
   } catch {
-    return String(val);
+    return str;
   }
 }
 
@@ -66,30 +66,31 @@ export default function ComparePairBar({
       <div className="x-compare-banner x-pinned-banner">
         <style>{`
           .x-compare-banner {
-            position: absolute;
-            top: 14px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 20;
-            background: rgba(12, 12, 18, 0.88);
+            position: relative;
+            width: 100%;
+            z-index: 10;
+            background: rgba(12, 12, 18, 0.92);
             backdrop-filter: blur(28px);
             border: 1px solid rgba(225, 29, 72, 0.45);
-            border-radius: 9999px;
-            padding: 6px 14px 6px 10px;
+            border-radius: 12px;
+            padding: 8px 14px;
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            gap: 12px;
-            box-shadow: 0 8px 32px rgba(4, 4, 6, 0.8), 0 0 16px rgba(225, 29, 72, 0.2);
+            justify-content: space-between;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(4, 4, 6, 0.6), 0 0 16px rgba(225, 29, 72, 0.15);
             animation: fadeInDown 0.25s ease-out;
+            margin-bottom: 8px;
           }
           @keyframes fadeInDown {
-            from { opacity: 0; transform: translate(-50%, -8px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
           }
           .x-pin-tag {
-            background: rgba(139, 92, 246, 0.22);
-            border: 1px solid rgba(167, 139, 250, 0.5);
-            color: #C4B5FD;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            color: #F4F4F6;
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
             font-weight: 700;
@@ -98,132 +99,56 @@ export default function ComparePairBar({
             display: flex;
             align-items: center;
             gap: 5px;
+            white-space: nowrap;
           }
-          .x-pin-hint {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 11px;
+          .x-pin-tag.is-tag-b {
+            background: rgba(225, 29, 72, 0.22);
+            border-color: rgba(251, 113, 133, 0.5);
+            color: #FB7185;
+          }
+          .x-pin-prompt {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
             color: rgba(244, 244, 246, 0.85);
             display: flex;
             align-items: center;
-            gap: 6px;
-          }
-          .x-pin-cancel {
-            background: rgba(244, 244, 246, 0.08);
-            border: 1px solid rgba(244, 244, 246, 0.16);
-            color: rgba(244, 244, 246, 0.7);
-            padding: 4px;
-            border-radius: 9999px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-          }
-          .x-pin-cancel:hover {
-            background: rgba(225, 29, 72, 0.3);
-            color: #F4F4F6;
-            border-color: rgba(225, 29, 72, 0.6);
-          }
-        `}</style>
-        <div className="x-pin-tag">
-          <span>{pinned.label} PINNED: {formatDate(pinned.date)}</span>
-        </div>
-        <div className="x-pin-hint">
-          <span>Click <strong>[{missingTag}]</strong> on any granule in this region or query ANY coordinate / preset globally</span>
-        </div>
-        <button
-          type="button"
-          className="x-pin-cancel"
-          onClick={onExitCompare}
-          title="Clear pinned selection"
-          aria-label="Cancel pin"
-        >
-          <X size={12} />
-        </button>
-      </div>
-    );
-  }
-
-  // If NOT currently comparing, but active record has a partner available
-  if (!isComparing && activePartner) {
-    const partnerP = activePartner.properties ?? activePartner ?? {};
-    const partnerDate = partnerP.acquisitionDate ?? (partnerP.startTime ? partnerP.startTime.slice(0, 10) : '');
-
-    return (
-      <div className="x-compare-banner">
-        <style>{`
-          .x-compare-banner {
-            position: absolute;
-            top: 14px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 20;
-            background: rgba(12, 12, 18, 0.82);
-            backdrop-filter: blur(28px);
-            border: 1px solid rgba(225, 29, 72, 0.45);
-            border-radius: 9999px;
-            padding: 6px 14px 6px 10px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 8px 32px rgba(4, 4, 6, 0.8), 0 0 16px rgba(225, 29, 72, 0.2);
-            animation: fadeInDown 0.25s ease-out;
-          }
-          @keyframes fadeInDown {
-            from { opacity: 0; transform: translate(-50%, -8px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
-          }
-          .x-partner-quick-btn {
-            background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%);
-            border: 1px solid rgba(251, 113, 133, 0.5);
-            color: #F4F4F6;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            padding: 5px 12px;
-            border-radius: 9999px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 2px 8px rgba(225, 29, 72, 0.35);
-          }
-          .x-partner-quick-btn:hover {
-            transform: scale(1.03);
-            background: linear-gradient(135deg, #FB7185 0%, #E11D48 100%);
-          }
-          .x-partner-info {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            color: rgba(244, 244, 246, 0.78);
-            display: flex;
-            align-items: center;
             gap: 8px;
+            flex-wrap: wrap;
           }
-          .x-partner-pill {
-            background: rgba(139, 92, 246, 0.18);
-            border: 1px solid rgba(139, 92, 246, 0.4);
-            color: #C4B5FD;
-            padding: 2px 8px;
-            border-radius: 9999px;
+          .x-pin-btn-cancel {
+            background: transparent;
+            border: 1px solid rgba(244, 244, 246, 0.15);
+            color: rgba(244, 244, 246, 0.65);
+            border-radius: 6px;
+            padding: 4px 8px;
             font-size: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+          }
+          .x-pin-btn-cancel:hover {
+            color: #FB7185;
+            border-color: rgba(225, 29, 72, 0.4);
+            background: rgba(225, 29, 72, 0.1);
           }
         `}</style>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <span className={`x-pin-tag${pinned.tag === 'B' ? ' is-tag-b' : ''}`}>
+            {pinned.label}: {formatDate(pinned.date)}
+          </span>
+          <span className="x-pin-prompt">
+            Click <strong>[{missingTag}]</strong> on any other observation (or pick a new region) to complete pair
+          </span>
+        </div>
         <button
           type="button"
-          className="x-partner-quick-btn"
-          onClick={() => onStartAutoCompare?.(activePartner)}
+          className="x-pin-btn-cancel"
+          onClick={onExitCompare}
+          title="Cancel pair selection"
         >
-          <Zap size={13} fill="#F4F4F6" />
-          <span>Compare Repeat-Pass Pair</span>
+          <X size={12} className="inline mr-1" />
+          <span>Cancel</span>
         </button>
-        <div className="x-partner-info">
-          <span className="x-partner-pill">12-Day Orbit Match</span>
-          <span>Partner: {formatDate(partnerDate)}</span>
-        </div>
       </div>
     );
   }
@@ -235,59 +160,62 @@ export default function ComparePairBar({
     <div className="x-compare-hud">
       <style>{`
         .x-compare-hud {
-          position: absolute;
-          top: 12px;
-          left: 12px;
-          right: 12px;
-          z-index: 20;
-          background: rgba(10, 10, 16, 0.88);
+          position: relative;
+          width: 100%;
+          z-index: 10;
+          background: rgba(10, 10, 16, 0.94);
           backdrop-filter: blur(28px);
-          border: 1px solid rgba(225, 29, 72, 0.35);
+          border: 1px solid rgba(225, 29, 72, 0.4);
           border-radius: 12px;
-          padding: 8px 14px;
+          padding: 8px 12px;
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
-          box-shadow: 0 10px 40px rgba(4, 4, 6, 0.85), 0 0 24px rgba(225, 29, 72, 0.15);
+          gap: 8px 12px;
+          box-shadow: 0 6px 24px rgba(4, 4, 6, 0.7), 0 0 20px rgba(225, 29, 72, 0.15);
           animation: fadeInDown 0.25s ease-out;
+          margin-bottom: 8px;
         }
         .x-hud-left {
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
         .x-hud-badge-group {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           font-family: 'JetBrains Mono', monospace;
-          font-size: 11px;
+          font-size: 10.5px;
           font-weight: 600;
         }
         .x-date-badge-a {
-          background: rgba(139, 92, 246, 0.16);
-          border: 1px solid rgba(167, 139, 250, 0.45);
-          color: #C4B5FD;
-          padding: 4px 10px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          color: #F4F4F6;
+          padding: 3px 8px;
           border-radius: 6px;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
+          white-space: nowrap;
         }
         .x-date-badge-b {
           background: rgba(225, 29, 72, 0.16);
           border: 1px solid rgba(251, 113, 133, 0.45);
           color: #FB7185;
-          padding: 4px 10px;
+          padding: 3px 8px;
           border-radius: 6px;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
+          white-space: nowrap;
         }
         .x-hud-vs {
           font-family: 'Space Grotesk', sans-serif;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 700;
           color: rgba(244, 244, 246, 0.4);
           text-transform: uppercase;
@@ -295,67 +223,72 @@ export default function ComparePairBar({
         .x-hud-meta {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           font-family: 'JetBrains Mono', monospace;
-          font-size: 10px;
+          font-size: 9.5px;
           color: rgba(244, 244, 246, 0.65);
           border-left: 1px solid rgba(244, 244, 246, 0.12);
-          padding-left: 10px;
+          padding-left: 8px;
+          white-space: nowrap;
         }
         .x-hud-center {
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
-          gap: 6px;
+          gap: 4px;
           background: rgba(4, 4, 6, 0.6);
           border: 1px solid rgba(244, 244, 246, 0.08);
           border-radius: 8px;
-          padding: 3px;
+          padding: 2px;
         }
         .x-mode-pill {
           background: transparent;
           border: none;
           color: rgba(244, 244, 246, 0.65);
           font-family: 'Space Grotesk', sans-serif;
-          font-size: 11px;
+          font-size: 10.5px;
           font-weight: 600;
-          letter-spacing: 0.04em;
-          padding: 5px 11px;
+          letter-spacing: 0.03em;
+          padding: 4px 9px;
           border-radius: 6px;
           cursor: pointer;
-          display: flex;
+          display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           transition: all 0.18s ease;
+          white-space: nowrap;
         }
         .x-mode-pill:hover {
           color: #F4F4F6;
           background: rgba(244, 244, 246, 0.06);
         }
         .x-mode-pill.is-active {
-          background: linear-gradient(135deg, rgba(225, 29, 72, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%);
-          border: 1px solid rgba(251, 113, 133, 0.45);
+          background: linear-gradient(135deg, rgba(225, 29, 72, 0.35) 0%, rgba(190, 18, 60, 0.25) 100%);
+          border: 1px solid rgba(251, 113, 133, 0.55);
           color: #F4F4F6;
           box-shadow: 0 2px 8px rgba(225, 29, 72, 0.2);
         }
         .x-hud-right {
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
         }
         .x-hud-btn-subtle {
           background: rgba(244, 244, 246, 0.06);
           border: 1px solid rgba(244, 244, 246, 0.12);
           color: #F4F4F6;
-          padding: 6px 10px;
+          padding: 5px 9px;
           border-radius: 6px;
           cursor: pointer;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 5px;
           font-family: 'Space Grotesk', sans-serif;
-          font-size: 11px;
+          font-size: 10.5px;
           font-weight: 600;
           transition: all 0.18s ease;
+          white-space: nowrap;
         }
         .x-hud-btn-subtle:hover {
           background: rgba(244, 244, 246, 0.12);
@@ -365,16 +298,17 @@ export default function ComparePairBar({
           background: rgba(225, 29, 72, 0.18);
           border: 1px solid rgba(225, 29, 72, 0.4);
           color: #FB7185;
-          padding: 6px 10px;
+          padding: 5px 9px;
           border-radius: 6px;
           cursor: pointer;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 5px;
           font-family: 'Space Grotesk', sans-serif;
-          font-size: 11px;
+          font-size: 10.5px;
           font-weight: 600;
           transition: all 0.18s ease;
+          white-space: nowrap;
         }
         .x-hud-exit-btn:hover {
           background: rgba(225, 29, 72, 0.35);
@@ -383,12 +317,18 @@ export default function ComparePairBar({
         .x-opacity-control {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           font-family: 'JetBrains Mono', monospace;
-          font-size: 10px;
+          font-size: 9.5px;
           color: rgba(244, 244, 246, 0.6);
           border-left: 1px solid rgba(244, 244, 246, 0.12);
-          padding-left: 10px;
+          padding-left: 8px;
+          white-space: nowrap;
+        }
+        .x-opacity-slider {
+          accent-color: #E11D48;
+          width: 52px;
+          cursor: pointer;
         }
         .x-cross-loc-pill {
           background: rgba(225, 29, 72, 0.22);
@@ -399,10 +339,15 @@ export default function ComparePairBar({
           font-weight: 700;
           letter-spacing: 0.04em;
         }
-        .x-opacity-slider {
-          accent-color: #E11D48;
-          width: 58px;
-          cursor: pointer;
+        @media (max-width: 900px) {
+          .x-compare-hud {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .x-hud-left, .x-hud-center, .x-hud-right {
+            justify-content: space-between;
+            width: 100%;
+          }
         }
       `}</style>
 
@@ -441,8 +386,8 @@ export default function ComparePairBar({
             className="x-mode-pill is-active"
             title="Dual-Region Comparative SAR: Independent classification and backscatter draping on both footprints"
           >
-            <Layers size={13} />
-            <span>Dual-Region Radar Footprints (A & B)</span>
+            <Layers size={12} />
+            <span>Dual-Region Footprints (A & B)</span>
           </button>
         </div>
       ) : (
@@ -453,7 +398,7 @@ export default function ComparePairBar({
             onClick={() => onSetCompareMode?.('floodMask')}
             title="Drape 4-Class Surface & Water Change classification texture"
           >
-            <Layers size={13} />
+            <Layers size={12} />
             <span>4-Class Flood Mask</span>
           </button>
 
@@ -463,8 +408,8 @@ export default function ComparePairBar({
             onClick={() => onSetCompareMode?.('curtain')}
             title="Interactive 3D split-swipe curtain slider between Date A and Date B"
           >
-            <SplitSquareVertical size={13} />
-            <span>Split-Swipe Curtain (A ◄► B)</span>
+            <SplitSquareVertical size={12} />
+            <span>Split Curtain (A ◄► B)</span>
           </button>
 
           <button
@@ -473,7 +418,7 @@ export default function ComparePairBar({
             onClick={() => onSetCompareMode?.('diffDb')}
             title="Drape continuous backscatter shift (B - A dB)"
           >
-            <Sparkles size={13} />
+            <Sparkles size={12} />
             <span>Backscatter ΔdB</span>
           </button>
         </div>
@@ -503,7 +448,7 @@ export default function ComparePairBar({
           onClick={onSwapCompare}
           title="Swap Date A and Date B"
         >
-          <ArrowLeftRight size={12} />
+          <ArrowLeftRight size={11} />
           <span>Swap A/B</span>
         </button>
 
@@ -513,7 +458,7 @@ export default function ComparePairBar({
           onClick={onExitCompare}
           title="Exit Multi-Temporal Compare Mode"
         >
-          <X size={12} />
+          <X size={11} />
           <span>Exit Compare</span>
         </button>
       </div>

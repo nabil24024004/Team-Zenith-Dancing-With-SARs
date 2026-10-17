@@ -4,7 +4,6 @@ import 'cesium/Build/Cesium/Widgets/widgets.css';
 import { Mountain, Globe2, Layers, Focus, Sparkles } from 'lucide-react';
 import { DiamondCrosshair } from '../../components/ZenithElements.jsx';
 import { SME2_L3_DATASET } from './sme2Data.js';
-import ComparePairBar from './ComparePairBar.jsx';
 
 const CESIUM_ION_TOKEN = (import.meta.env.VITE_CESIUM_ION_TOKEN ?? '').trim();
 
@@ -920,7 +919,7 @@ export default function GlobeViewer({
     const isCross = changeProduct.isCrossLocation;
     renderCompareOutline(
       comparePair.granuleA,
-      '#8B5CF6',
+      '#F4F4F6',
       isCross ? `LOCATION A · ${pA.acquisitionDate ?? 'REF'}` : `DATE A · ${pA.acquisitionDate ?? 'REF'}`
     );
     renderCompareOutline(
@@ -1128,31 +1127,14 @@ export default function GlobeViewer({
           height: 100%;
         }
         .x-globe-host canvas { outline: none; }
-        .x-globe-status {
-          position: absolute;
-          left: 14px;
-          bottom: 14px;
-          z-index: 5;
-          max-width: min(560px, calc(100% - 28px));
-          padding: 8px 13px;
-          border-radius: 999px;
-          background: rgba(4, 4, 6, 0.78);
-          border: 1px solid rgba(255, 255, 255, 0.11);
-          font-family: "JetBrains Mono", monospace;
-          font-size: 9.5px;
-          letter-spacing: 0.06em;
-          line-height: 1.45;
-          color: rgba(244, 244, 246, 0.75);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-        }
         .x-globe-kicker {
           position: absolute;
-          top: 14px;
-          left: 14px;
-          right: 14px;
+          top: 12px;
+          left: 12px;
+          right: 12px;
           z-index: 5;
           display: flex;
+          flex-wrap: wrap;
           align-items: center;
           justify-content: space-between;
           gap: 8px;
@@ -1162,24 +1144,27 @@ export default function GlobeViewer({
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          padding: 7px 12px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
+          padding: 6px 12px;
+          border: 1px solid rgba(255, 255, 255, 0.15);
           border-radius: 999px;
-          background: rgba(4, 4, 6, 0.76);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          background: rgba(4, 4, 6, 0.42);
+          backdrop-filter: blur(18px) saturate(140%);
+          -webkit-backdrop-filter: blur(18px) saturate(140%);
           font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.2em;
+          font-size: 9.5px;
+          letter-spacing: 0.16em;
           text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.88);
+          color: rgba(255, 255, 255, 0.9);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          white-space: nowrap;
         }
         .x-terrain-dot {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #A78BFA;
-          box-shadow: 0 0 8px rgba(167, 139, 250, 0.8);
+          background: #10B981;
+          box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
         }
         .x-globe-controls {
           display: flex;
@@ -1191,29 +1176,36 @@ export default function GlobeViewer({
         .x-globe-btn {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          padding: 6px 10px;
+          gap: 5px;
+          height: 28px;
+          padding: 0 10px;
           border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(4, 4, 6, 0.76);
-          backdrop-filter: blur(16px);
-          color: rgba(255, 255, 255, 0.78);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          background: rgba(4, 4, 6, 0.42);
+          backdrop-filter: blur(18px) saturate(140%);
+          -webkit-backdrop-filter: blur(18px) saturate(140%);
+          color: rgba(255, 255, 255, 0.9);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
           font-family: "JetBrains Mono", monospace;
-          font-size: 9px;
-          letter-spacing: 0.14em;
+          font-size: 9.5px;
+          letter-spacing: 0.12em;
           text-transform: uppercase;
           cursor: pointer;
           transition: all 0.2s ease;
+          white-space: nowrap;
         }
         .x-globe-btn:hover {
-          border-color: rgba(255, 255, 255, 0.32);
+          border-color: rgba(255, 255, 255, 0.35);
           color: #FFFFFF;
-          background: rgba(20, 20, 28, 0.88);
+          background: rgba(255, 255, 255, 0.14);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
         }
         .x-globe-btn.is-active {
-          border-color: rgba(251, 113, 133, 0.45);
-          background: rgba(225, 29, 72, 0.18);
-          color: #FFE4E6;
+          border-color: rgba(251, 113, 133, 0.6);
+          background: rgba(225, 29, 72, 0.35);
+          color: #FFFFFF;
+          box-shadow: 0 0 14px rgba(225, 29, 72, 0.45);
         }
         .x-globe-error {
           position: absolute;
@@ -1223,7 +1215,7 @@ export default function GlobeViewer({
           place-content: center;
           padding: 28px;
           text-align: center;
-          background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12), #040406 70%);
+          background: radial-gradient(ellipse at center, rgba(225, 29, 72, 0.1), #040406 70%);
         }
         .x-globe-error h3 {
           font-family: "Space Grotesk", sans-serif;
@@ -1291,8 +1283,8 @@ export default function GlobeViewer({
           right: 20px;
           background: rgba(12, 12, 18, 0.88);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(167, 139, 250, 0.5);
-          color: #C4B5FD;
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          color: #F4F4F6;
           font-family: 'JetBrains Mono', monospace;
           font-size: 10px;
           font-weight: 700;
@@ -1325,20 +1317,6 @@ export default function GlobeViewer({
         }
       `}</style>
 
-      {/* Floating Multi-Temporal Compare HUD Bar */}
-      <ComparePairBar
-        comparePair={comparePair}
-        activePartner={activePartner}
-        changeProduct={changeProduct}
-        onStartAutoCompare={onStartAutoCompare}
-        compareLayerMode={compareLayerMode}
-        onSetCompareMode={onSetCompareMode}
-        compareOpacity={compareOpacity}
-        onOpacityChange={onOpacityChange}
-        onSwapCompare={onSwapCompare}
-        onExitCompare={onExitCompare}
-      />
-
       <div
         className="x-globe-host"
         ref={hostRef}
@@ -1368,7 +1346,7 @@ export default function GlobeViewer({
       <div className="x-globe-kicker">
         <div className="x-globe-kicker-pill">
           <DiamondCrosshair />
-          <span>02 // ORBITAL COVERAGE · EARTH</span>
+          <span>ORBITAL COVERAGE · 3D GLOBE</span>
           {terrainActive && (
             <span
               className="x-terrain-dot"
@@ -1376,7 +1354,7 @@ export default function GlobeViewer({
             />
           )}
         </div>
-        <div className="x-globe-controls">
+        <div className="x-globe-controls" role="toolbar" aria-label="3D Globe Camera Views">
           <button
             type="button"
             className="x-globe-btn"
@@ -1433,9 +1411,6 @@ export default function GlobeViewer({
           </div>
         </div>
       )}
-      <div className="x-globe-status" role="status" aria-live="polite">
-        {status.message}
-      </div>
     </section>
   );
 }
